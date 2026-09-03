@@ -754,7 +754,10 @@ document.addEventListener('DOMContentLoaded', () => {
     'kg': 'kg', 'kgs': 'kg', 'kilo': 'kg', 'kilos': 'kg', 'kilogramo': 'kg', 'kilogramos': 'kg',
     'g': 'g', 'gr': 'g', 'grs': 'g', 'gramo': 'g', 'gramos': 'g',
     'mg': 'mg', 'mgs': 'mg', 'miligramo': 'mg', 'miligramos': 'mg',
-    '\u00b5g': '\u00b5g', 'ug': '\u00b5g', 'microgramo': '\u00b5g', 'microgramos': '\u00b5g'
+    '\u00b5g': '\u00b5g', 'ug': '\u00b5g', 'microgramo': '\u00b5g', 'microgramos': '\u00b5g',
+    'ft^3': 'ft\u00b3', 'ft3': 'ft\u00b3', 'ft\u00b3': 'ft\u00b3', 'ft 3': 'ft\u00b3',
+    'pie^3': 'pie\u00b3', 'pies^3': 'pies\u00b3', 'pie3': 'pie\u00b3', 'pies3': 'pies\u00b3',
+    'm^3': 'm\u00b3', 'm3': 'm\u00b3', 'm\u00b3': 'm\u00b3'
   };
   function normalizeSIUnit(raw) {
     return SI_UNIT_DISPLAY[raw.toLowerCase()] || raw;
@@ -772,11 +775,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return { valid: false, message: "\u26a0 Falta n\u00famero y unidad (ej: 500 mL, 2 L, 50 g, 5 ft\u00b3)", type: "no_digit" };
     }
 
-    // 1. Gases: ft3 y variantes
-    const gasRegex = /\b(ft3|ft\u00b3|ft\s*3|pies3|pie3|pies\s*c[u\u00fa]bicos?)\b/i;
+    // 1. Gases: ft3, ft^3, ft³, m3, m^3 y variantes
+    const gasRegex = /(?:ft\^3|ft3|ft\u00b3|ft\s*3|pies?\^3|pies?3|pies?\u00b3|pies?\s*c[u\u00fa]bicos?|m\^3|m3|m\u00b3)(?![a-zA-Z0-9])/i;
     if (gasRegex.test(s)) {
       const match = s.match(gasRegex);
-      return { valid: true, message: "\u2713 Volumen de Gas (" + match[0] + ")", type: "gas" };
+      const unitLabel = normalizeSIUnit(match[0]) || match[0];
+      return { valid: true, message: "\u2713 Volumen de Gas (" + unitLabel + ")", type: "gas" };
     }
 
     // 2. Volumen liquido
@@ -8081,11 +8085,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (str) {
       const clean = str.toLowerCase().replace(',', '.');
-      // Convert ft3 / pies3 to Liters (1 ft3 = 28.3168 L)
-      const mFt3 = clean.match(/(\d+[\.]?\d*)\s*(?:ft3|ft\^3|ft\s*3|pies3|pie3|pies\s*c[uú]bicos?)\b/);
+      // Convert ft3 / ft^3 / pies3 to Liters (1 ft3 = 28.3168 L)
+      const mFt3 = clean.match(/(\d+[\.]?\d*)\s*(?:ft\^3|ft3|ft\u00b3|ft\s*3|pies?3|pies?\^3|pies?\u00b3|pies?\s*c[uú]bicos?)(?![a-zA-Z0-9])/);
+      const mM3 = clean.match(/(\d+[\.]?\d*)\s*(?:m\^3|m3|m\u00b3)(?![a-zA-Z0-9])/);
       const mLit = clean.match(/(\d+[\.]?\d*)\s*(?:l|lt|lts|litro|litros)\b/);
       if (mFt3) {
         liters = parseFloat(mFt3[1]) * 28.3168;
+      } else if (mM3) {
+        liters = parseFloat(mM3[1]) * 1000.0;
       } else if (mLit) {
         liters = parseFloat(mLit[1]);
       } else {
