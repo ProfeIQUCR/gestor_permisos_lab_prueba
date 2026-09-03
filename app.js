@@ -1154,6 +1154,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return String(dateVal);
   }
 
+  function calcularIniciales(nombre) {
+    if (!nombre) return "";
+    // Limpiar tratamientos académicos y títulos habituales
+    const limpio = String(nombre).replace(/\b(Inga?|Dra?|Licda?|Lic|MSc|Ph\.?D|Prof|Bach)\.?\b/gi, '').trim();
+    const partes = limpio.split(/[\s,.-]+/).filter(p => p.length > 0);
+    if (partes.length === 0) return "";
+    return partes.map(p => p[0].toUpperCase()).join('').slice(0, 4);
+  }
+
   // --- Stepper Navigation Logic ---
   btnNextList.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1322,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nombreCursoProyecto: labType === 'cotrafin' ? "Propuesta ante Comisión" : (document.getElementById('nombreCursoProyecto')?.value || ""),
       docenteResponsable: document.getElementById('docenteResponsable').value,
       correoDocente: document.getElementById('correoDocente').value,
-      docenteIniciales: "GCV",
+      docenteIniciales: calcularIniciales(document.getElementById('docenteResponsable')?.value || ""),
       fechaInicio: labType === 'cotrafin' ? "" : document.getElementById('fechaInicio').value,
       fechaFinal: labType === 'cotrafin' ? "" : document.getElementById('fechaFinal').value,
       descripcionActividad: document.getElementById('descripcionActividad').value,
@@ -1741,10 +1750,12 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     let docenteInitials = current.docenteIniciales;
-    if (!docenteInitials && current.docenteResponsable) {
-      docenteInitials = current.docenteResponsable.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 4);
+    if ((!docenteInitials || docenteInitials === 'GCV') && current.docenteResponsable) {
+      if (!current.docenteResponsable.toLowerCase().includes('chacón') && !current.docenteResponsable.toLowerCase().includes('chacon')) {
+        docenteInitials = calcularIniciales(current.docenteResponsable);
+      }
     }
-    if (!docenteInitials) docenteInitials = 'DOC';
+    if (!docenteInitials) docenteInitials = calcularIniciales(current.docenteResponsable) || 'DOC';
 
     const sig2SealText = isDocApproved ? `VISTO BUENO [${docenteInitials}]` : 'PENDIENTE VB';
     const fechaDocente = current.docenteFecha || current.fechaCreacion || 'Registrado digitalmente';
