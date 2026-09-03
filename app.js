@@ -2171,15 +2171,48 @@ document.addEventListener('DOMContentLoaded', () => {
         autorizarJefatura(s.id);
       };
       btnModalDevolver.classList.remove('hidden');
-      btnModalDevolver.onclick = () => {
-        const motivo = prompt(`Indique el motivo de devolución o corrección para ${s.nombreEstudiante}:`);
+      btnModalDevolver.onclick = async () => {
+        const motivo = prompt(`Indique las observaciones y motivo de devolución para ${s.nombreEstudiante}:`);
         if (motivo && motivo.trim()) {
           s.estado = "Devuelto por Jefatura / Corrección";
-          s.docenteObservaciones = `Devolución de Jefatura: ${motivo.trim()}`;
+          s.devueltoJefatura = true;
+          s.devueltoDocente = true;
+          s.docenteAprobado = false;
+          s.jefeObservaciones = motivo.trim();
           closeModalRevision();
+
+          // Sincronizar devolución con el backend en modo Live
+          if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+            try {
+              const chkDelegacion = document.getElementById('chk-delegacion-firma');
+              const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
+              let jNombre = config.titularNombre;
+              let jCargo = config.titularCargo;
+              if (chkDelegacion && chkDelegacion.checked) {
+                jNombre = document.getElementById('delegado-nombre').value.trim() || jNombre;
+                jCargo = document.getElementById('delegado-cargo').value.trim() || jCargo;
+              }
+              await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                credentials: 'omit',
+                body: JSON.stringify({
+                  action: "devolver_jefatura",
+                  ticketId: s.id,
+                  motivo: motivo.trim(),
+                  jefeNombre: jNombre,
+                  jefeCargo: jCargo
+                })
+              });
+            } catch (err) {
+              console.warn("Aviso al sincronizar devolución de jefatura:", err);
+            }
+          }
+
+          guardarSolicitudesLS();
           renderTable();
           updateKPIs();
-          alert(`Solicitud #${s.id} devuelta con las observaciones indicadas.`);
+          alert(`Solicitud #${s.id} DEVUELTA con observaciones.\n\nSe ha notificado a la persona estudiante (${s.correoEstudiante}) con copia al docente responsable (${s.correoDocente}).`);
         }
       };
     } else {
