@@ -271,15 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const est = String(item.estado || "").toUpperCase();
-            if (est.includes("DOCENTE") || est.includes("AUTORIZADO") || est === "EMITIDO") {
-              item.docenteAprobado = true;
-            }
-            if (est.includes("AUTORIZADO") || est === "EMITIDO") {
-              item.jefeAprobado = true;
-            }
-            if (est.includes("DEVUELTO")) {
-              item.devueltoDocente = true;
-            }
+            const esDevuelto = (est.includes("DEVUELTO") || est.includes("RECHAZADO"));
+            const esPendiente = (est.includes("PENDIENTE"));
+            const esAprobadoDocente = (est === "APROBADO_DOCENTE" || est.includes("APROBADO POR DOCENTE"));
+            const esAutorizadoJefatura = (est.includes("AUTORIZADO") || est === "EMITIDO");
+
+            item.devueltoDocente = esDevuelto;
+            item.jefeAprobado = esAutorizadoJefatura;
+            item.docenteAprobado = !esDevuelto && !esPendiente && (esAprobadoDocente || esAutorizadoJefatura);
             if (!item.docenteIniciales && item.docenteResponsable) {
               item.docenteIniciales = item.docenteResponsable.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 4);
             }
@@ -1731,9 +1730,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const estUpperLetter = String(current.estado || "").toUpperCase();
-    const isDocApproved = Boolean(
+    const esDevueltoLetter = Boolean(estUpperLetter.includes("DEVUELTO") || estUpperLetter.includes("RECHAZADO") || current.devueltoDocente);
+    const esPendienteLetter = Boolean(estUpperLetter.includes("PENDIENTE"));
+    const isDocApproved = !esDevueltoLetter && !esPendienteLetter && Boolean(
       current.docenteAprobado || 
-      estUpperLetter.includes("DOCENTE") || 
+      estUpperLetter === "APROBADO_DOCENTE" || 
+      estUpperLetter.includes("APROBADO POR DOCENTE") || 
       estUpperLetter.includes("AUTORIZADO") || 
       current.jefeAprobado
     );
@@ -1965,13 +1967,22 @@ document.addEventListener('DOMContentLoaded', () => {
       let estadoLabel = s.estado;
 
       const estUpper = String(s.estado || "").toUpperCase();
-      if (estUpper.includes("AUTORIZADO") || s.jefeAprobado) {
+      const esDevuelto = Boolean(estUpper.includes("DEVUELTO") || estUpper.includes("RECHAZADO") || s.devueltoDocente);
+      const esPendiente = Boolean(estUpper.includes("PENDIENTE"));
+      const esAprobadoDocente = !esDevuelto && !esPendiente && Boolean(
+        s.docenteAprobado || 
+        estUpper === "APROBADO_DOCENTE" || 
+        estUpper.includes("APROBADO POR DOCENTE")
+      );
+      const esAutorizadoJefatura = Boolean(estUpper.includes("AUTORIZADO") || s.jefeAprobado);
+
+      if (esAutorizadoJefatura) {
         statusClass = "status-authorized";
         estadoLabel = "Autorizado por Jefatura";
-      } else if (estUpper.includes("DEVUELTO") || s.devueltoDocente) {
+      } else if (esDevuelto) {
         statusClass = "status-rejected";
         estadoLabel = "Devuelto por Docente";
-      } else if (estUpper.includes("DOCENTE") || s.docenteAprobado) {
+      } else if (esAprobadoDocente) {
         statusClass = "status-docente-approved";
         estadoLabel = "V.B. Docente Otorgado";
       } else {
@@ -1980,16 +1991,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       let actionBtn = "";
-      if (estUpper.includes("DEVUELTO") || s.devueltoDocente) {
+      if (esDevuelto) {
         actionBtn = `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Ver Detalle</button>`;
-      } else if (s.estado === "Autorizado por Jefatura" || s.jefeAprobado) {
+      } else if (esAutorizadoJefatura) {
         actionBtn = `
           <div style="display: flex; gap: 0.35rem; align-items: center;">
             <button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Revisar Carta</button>
             <button class="btn-primary btn-sm" onclick="verCarta('${s.id}')">Ver Final</button>
           </div>
         `;
-      } else if ((s.docenteAprobado || estUpper.includes("DOCENTE")) && !s.jefeAprobado) {
+      } else if (esAprobadoDocente) {
         actionBtn = `
           <div style="display: flex; gap: 0.35rem; align-items: center;">
             <button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Revisar Carta</button>
@@ -2072,7 +2083,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // sincronizar en tiempo real con Google Sheets para capturar la aprobación reciente
     if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
       const estLocal = String(s.estado || "").toUpperCase();
-      if (!s.docenteAprobado && !estLocal.includes("DOCENTE") && !estLocal.includes("AUTORIZADO")) {
+      const yaAprobLocal = !estLocal.includes("PENDIENTE") && !estLocal.includes("DEVUELTO") && (s.docenteAprobado || estLocal === "APROBADO_DOCENTE" || estLocal.includes("APROBADO POR DOCENTE"));
+      if (!yaAprobLocal) {
         await sincronizarSolicitudesBackend();
         const sActual = solicitudes.find(item => item.id === id);
         if (sActual) s = sActual;
@@ -2091,17 +2103,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Modal Footer Action Buttons
     const estUpperModal = String(s.estado || "").toUpperCase();
-    const isDocenteAprobadoModal = Boolean(
+    const esDevueltoModal = Boolean(s.devueltoDocente || estUpperModal.includes("DEVUELTO") || estUpperModal.includes("RECHAZADO"));
+    const esPendienteModal = Boolean(estUpperModal.includes("PENDIENTE"));
+    const isDocenteAprobadoModal = !esDevueltoModal && !esPendienteModal && Boolean(
       s.docenteAprobado || 
-      estUpperModal.includes("APROBADO_DOCENTE") || 
-      estUpperModal.includes("DOCENTE")
+      estUpperModal === "APROBADO_DOCENTE" || 
+      estUpperModal.includes("APROBADO POR DOCENTE")
     );
     const isJefeAprobadoModal = Boolean(
       s.jefeAprobado || 
       estUpperModal.includes("AUTORIZADO")
     );
 
-    if (s.devueltoDocente || estUpperModal.includes("DEVUELTO")) {
+    if (esDevueltoModal) {
       btnModalAutorizar.textContent = "Solicitud Devuelta por Docente";
       btnModalAutorizar.className = "btn-secondary";
       btnModalAutorizar.disabled = true;
