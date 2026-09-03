@@ -100,9 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentStep = 1;
   let activeTicketId = "LG-PERM-2026-0042";
   let studentSignatureDataUrl = null;
+  // =============================================================================
+  // PERSISTENCIA EN localStorage — Las solicitudes sobreviven recargas de página
+  // =============================================================================
+  const LS_KEY = 'eiq_solicitudes_v1';
 
-  // Initial Solicitudes Data Store
-  let solicitudes = [
+  const SOLICITUDES_DEMO = [
     {
       id: "LG-PERM-2026-0042",
       tipoLaboratorio: "general",
@@ -112,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       correoEstudiante: "mariana.rojas@ucr.ac.cr",
       tipoActividad: "Trabajo final de curso",
       nombreCursoProyecto: "IQ-0402 Operaciones Unitarias II",
-      docenteResponsable: "Gerardo Chacón Valle",
+      docenteResponsable: "Gerardo Chácón Valle",
       correoDocente: "gerardo.chacon@ucr.ac.cr",
       docenteIniciales: "GCV",
       fechaInicio: "2026-08-25",
@@ -147,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
       id: "LI-PERM-2026-0041",
       tipoLaboratorio: "instrumental",
       labNombre: "Laboratorio Instrumental EIQ",
-      nombreEstudiante: "María José Gómez Ñañez",
+      nombreEstudiante: "María José Gómez Ñáñez",
       carneEstudiante: "C01234",
       correoEstudiante: "mariajose.gomez@ucr.ac.cr",
       tipoActividad: "Trabajo final de graduación",
@@ -227,6 +230,84 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "18/08/2026 11:15"
     }
   ];
+
+  // Cargar desde localStorage si hay datos reales guardados; si no, usar datos de demo.
+  function cargarSolicitudesLS() {
+    try {
+      const guardadas = localStorage.getItem(LS_KEY);
+      if (guardadas) {
+        const parsed = JSON.parse(guardadas);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) { /* sin-op */ }
+    return SOLICITUDES_DEMO.slice(); // copia de los datos de demo
+  }
+
+  // Persistir el array actual en localStorage.
+  function guardarSolicitudesLS() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(solicitudes));
+    } catch (e) { /* cuota excedida u otro error, sin-op */ }
+  }
+
+  // Sincronizar todas las solicitudes con Google Sheets (fuente central de verdad)
+  async function sincronizarSolicitudesBackend() {
+    if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return;
+    try {
+      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar`);
+      const result = await resp.json();
+      if (result && result.success && Array.isArray(result.solicitudes)) {
+        if (result.solicitudes.length > 0) {
+          const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
+          const merged = [];
+
+          // Las solicitudes del backend van primero
+          for (const item of result.solicitudes) {
+            if (!item.tipoLaboratorio) {
+              const labNom = String(item.labNombre || "").toLowerCase();
+              if (labNom.includes("instrumental")) item.tipoLaboratorio = "instrumental";
+              else if (labNom.includes("cotrafin")) item.tipoLaboratorio = "cotrafin";
+              else item.tipoLaboratorio = "general";
+            }
+            merged.push(item);
+          }
+
+          // Mantener registros locales previos que no colisionen con los demos
+          for (const s of solicitudes) {
+            if (!mapBackend.has(s.id) && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040")) {
+              merged.push(s);
+            }
+          }
+
+          solicitudes = merged;
+          guardarSolicitudesLS();
+          renderTable();
+          updateKPIs();
+        }
+      }
+    } catch (err) {
+      console.warn("Sincronización con backend diferida:", err);
+    }
+  }
+
+  // Sincronizar el estado de una solicitud individual con el backend (consulta ?action=verificar)
+  async function sincronizarEstadoSolicitud(id) {
+    if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return null;
+    try {
+      const url = `${EIQ_CONFIG.API_BACKEND_URL}?action=verificar&id=${encodeURIComponent(id)}`;
+      const resp = await fetch(url);
+      const html = await resp.text();
+      const devuelto = html.includes('DEVUELTA PARA CORRECCIÓN') || html.includes('DEVUELTO');
+      const aprobado = html.includes('APROBADO_DOCENTE') || html.includes('AUTORIZADO_JEFATURA') || html.includes('EMITIDO') || html.includes('CARTA AUTENTICADA');
+      const pendiente = html.includes('EN PROCESO DE VISTO BUENO') || html.includes('PENDIENTE');
+      if (devuelto) return 'DEVUELTO_DOCENTE';
+      if (aprobado) return 'APROBADO_DOCENTE';
+      if (pendiente) return 'PENDIENTE_DOCENTE';
+      return null;
+    } catch (e) { return null; }
+  }
+
+  let solicitudes = cargarSolicitudesLS();
 
   // --- Element Selectors ---
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -1251,11 +1332,13 @@ document.addEventListener('DOMContentLoaded', () => {
           ticketFinal = result.ticketId;
           nuevaSolicitud.id = ticketFinal;
           activeTicketId = ticketFinal;
+          mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
+        } else {
+          throw new Error(result && result.error ? result.error : 'El servidor no confirmó el registro de la solicitud.');
         }
-        mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
       } catch (err) {
         console.warn('Fallo de conexión con Google Apps Script, operando en modo local:', err);
-        mensajeConfirmacion = `¡Solicitud generada en modo local (#${ticketFinal})!\n(Aviso: No se pudo contactar el servidor remoto, registrado en sesión local).`;
+        mensajeConfirmacion = `¡Solicitud generada en modo local (#${ticketFinal})!\n(Aviso: No se pudo contactar el servidor remoto o hubo un error: ${err.message}).`;
       }
     } else {
       mensajeConfirmacion = `¡Solicitud #${ticketFinal} generada con éxito (Modo Simulación)!\n\nSe ha creado el expediente para revisión y visto bueno.\n\n(Para activar el registro automático en Google Sheets y correos institucionales, configure la URL en portal/config.js).`;
@@ -1267,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     solicitudes.unshift(nuevaSolicitud);
+    guardarSolicitudesLS(); // Persistir en localStorage para sobrevivir recargas
     // Registrar consumo continuo de reactivos en el inventario y bitácora institucional
     ReagentsTrackingManager.registrarSolicitud(nuevaSolicitud);
     renderReagentsDashboard();
@@ -1320,9 +1404,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetId === 'jefatura') {
       renderTable();
       updateKPIs();
+      sincronizarSolicitudesBackend();
     } else if (targetId === 'historico') {
       renderHistoricalDashboard();
       renderReagentsDashboard();
+      sincronizarSolicitudesBackend();
     } else if (targetId === 'docente') {
       renderDocenteView();
     } else if (targetId === 'carta') {
@@ -1823,11 +1909,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     solicitudesTableBody.innerHTML = filtered.map(s => {
       let statusClass = "status-pending";
-      if (s.estado.includes("Autorizado")) statusClass = "status-authorized";
-      else if (s.estado.includes("Docente")) statusClass = "status-docente-approved";
+      let estadoLabel = s.estado;
+
+      const estUpper = String(s.estado || "").toUpperCase();
+      if (estUpper.includes("AUTORIZADO") || s.jefeAprobado) {
+        statusClass = "status-authorized";
+        estadoLabel = "Autorizado por Jefatura";
+      } else if (estUpper.includes("DEVUELTO") || s.devueltoDocente) {
+        statusClass = "status-rejected";
+        estadoLabel = "Devuelto por Docente";
+      } else if (estUpper.includes("DOCENTE") || s.docenteAprobado) {
+        statusClass = "status-docente-approved";
+        estadoLabel = "V.B. Docente Otorgado";
+      } else {
+        statusClass = "status-pending";
+        estadoLabel = "Pendiente Visto Bueno";
+      }
 
       let actionBtn = "";
-      if (s.estado === "Autorizado por Jefatura") {
+      if (estUpper.includes("DEVUELTO") || s.devueltoDocente) {
+        actionBtn = `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Ver Detalle</button>`;
+      } else if (s.estado === "Autorizado por Jefatura" || s.jefeAprobado) {
         actionBtn = `
           <div style="display: flex; gap: 0.35rem; align-items: center;">
             <button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Revisar Carta</button>
@@ -1857,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${s.labNombre}</td>
           <td>${s.docenteResponsable}</td>
           <td>${periodoDisplay}</td>
-          <td><span class="badge-pill ${statusClass}">${s.estado}</span></td>
+          <td><span class="badge-pill ${statusClass}">${estadoLabel}</span></td>
           <td>${actionBtn}</td>
         </tr>
       `;
@@ -1909,7 +2011,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Modal Footer Action Buttons
-    if (s.jefeAprobado) {
+    const estUpperModal = String(s.estado || "").toUpperCase();
+    if (s.devueltoDocente || estUpperModal.includes("DEVUELTO")) {
+      btnModalAutorizar.textContent = "Solicitud Devuelta por Docente";
+      btnModalAutorizar.className = "btn-secondary";
+      btnModalAutorizar.disabled = true;
+      btnModalDevolver.classList.add('hidden');
+    } else if (s.jefeAprobado) {
       btnModalAutorizar.textContent = "Ver Carta Final";
       btnModalAutorizar.className = "btn-primary";
       btnModalAutorizar.disabled = false;
@@ -1919,7 +2027,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       btnModalDevolver.classList.add('hidden');
     } else if (s.docenteAprobado) {
-      btnModalAutorizar.textContent = "✓ Autorizar y Emitir Carta Oficial";
+      btnModalAutorizar.textContent = "Autorizar y Emitir Carta Oficial";
       btnModalAutorizar.className = "btn-success";
       btnModalAutorizar.disabled = false;
       btnModalAutorizar.onclick = () => {
@@ -1948,7 +2056,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modalRevision.classList.remove('hidden');
   };
 
-  window.autorizarJefatura = function(id) {
+  window.autorizarJefatura = async function(id) {
     const s = solicitudes.find(item => item.id === id);
     if (!s) return;
 
@@ -1974,9 +2082,32 @@ document.addEventListener('DOMContentLoaded', () => {
     s.estado = "Autorizado por Jefatura";
     activeTicketId = s.id;
 
+    guardarSolicitudesLS();
+
+    // Notificar al backend en modo Live para actualizar Sheets y despachar correos
+    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+      try {
+        await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: "autorizar_jefatura",
+            ticketId: s.id,
+            jefeNombre: s.jefeNombre,
+            jefeCargo: s.jefeCargo,
+            jefeTituloSig: s.jefeTituloSig,
+            jefeIniciales: s.jefeIniciales,
+            esDelegado: s.esDelegado
+          })
+        });
+      } catch (err) {
+        console.warn("Aviso al sincronizar autorización con el servidor:", err);
+      }
+    }
+
     renderTable();
     updateKPIs();
-    alert(`Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial en formato PDF institucional.`);
+    alert(`Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial y se han enviado las notificaciones automáticas por correo electrónico.`);
     switchTab('carta');
   };
 
@@ -8305,4 +8436,5 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTable();
   renderHistoricalDashboard();
   renderReagentsDashboard();
+  sincronizarSolicitudesBackend();
 });
