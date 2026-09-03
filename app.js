@@ -254,8 +254,17 @@ document.addEventListener('DOMContentLoaded', () => {
   async function sincronizarSolicitudesBackend() {
     if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return;
     try {
-      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar`);
-      const result = await resp.json();
+      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar`, {
+        method: 'GET',
+        credentials: 'omit'
+      });
+      const rawText = await resp.text();
+      let result = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (e) {
+        console.warn("Aviso: el listado del backend devolvió texto no-JSON:", rawText.slice(0, 150));
+      }
       if (result && result.success && Array.isArray(result.solicitudes)) {
         if (result.solicitudes.length > 0) {
           const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
@@ -1366,9 +1375,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(nuevaSolicitud)
+          body: JSON.stringify(nuevaSolicitud),
+          credentials: 'omit'
         });
-        const result = await resp.json();
+        const rawText = await resp.text();
+        let result = null;
+        try {
+          result = JSON.parse(rawText);
+        } catch (e) {
+          console.warn('Respuesta no-JSON de Google Apps Script:', rawText);
+          const ticketMatch = rawText.match(/COT-PERM-\d{4}-\d{4}|LG-PERM-\d{4}-\d{4}|LI-PERM-\d{4}-\d{4}/);
+          if (ticketMatch) {
+            result = { success: true, ticketId: ticketMatch[0] };
+          } else {
+            throw new Error('El servidor devolvió una respuesta no válida (posible interferencia de sesión en el navegador).');
+          }
+        }
         if (result && result.success && result.ticketId) {
           ticketFinal = result.ticketId;
           nuevaSolicitud.id = ticketFinal;
@@ -2204,6 +2226,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await fetch(EIQ_CONFIG.API_BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          credentials: 'omit',
           body: JSON.stringify({
             action: "autorizar_jefatura",
             ticketId: s.id,
