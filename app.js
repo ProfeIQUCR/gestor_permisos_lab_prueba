@@ -1376,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(nuevaSolicitud),
-          credentials: 'omit'
+          redirect: 'follow'
         });
         const rawText = await resp.text();
         let result = null;
@@ -1387,8 +1387,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const ticketMatch = rawText.match(/COT-PERM-\d{4}-\d{4}|LG-PERM-\d{4}-\d{4}|LI-PERM-\d{4}-\d{4}/);
           if (ticketMatch) {
             result = { success: true, ticketId: ticketMatch[0] };
-          } else {
-            throw new Error('El servidor devolvió una respuesta no válida (posible interferencia de sesión en el navegador).');
           }
         }
         if (result && result.success && result.ticketId) {
@@ -1397,11 +1395,41 @@ document.addEventListener('DOMContentLoaded', () => {
           activeTicketId = ticketFinal;
           mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
         } else {
-          throw new Error(result && result.error ? result.error : 'El servidor no confirmó el registro de la solicitud.');
+          throw new Error(result && result.error ? result.error : 'No se recibió confirmación JSON directa del servidor.');
         }
       } catch (err) {
-        console.warn('Fallo de conexión con Google Apps Script, operando en modo local:', err);
-        mensajeConfirmacion = `¡Solicitud generada en modo local (#${ticketFinal})!\n(Aviso: No se pudo contactar el servidor remoto o hubo un error: ${err.message}).`;
+        console.warn('Fallo o redirección en fetch POST, verificando si se registró en la hoja:', err);
+        
+        // Verificación activa inmediata: comprobar si el POST ya se ejecutó exitosamente en Google Sheets
+        let registradoEnBackend = false;
+        try {
+          const checkResp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar&_nc=${Date.now()}`, {
+            method: 'GET',
+            redirect: 'follow'
+          });
+          const checkRaw = await checkResp.text();
+          let checkData = null;
+          try { checkData = JSON.parse(checkRaw); } catch(e){}
+          if (checkData && checkData.success && Array.isArray(checkData.solicitudes)) {
+            const encontrada = checkData.solicitudes.find(s => 
+              s.carneEstudiante === nuevaSolicitud.carneEstudiante &&
+              (s.nombreEstudiante || "").trim().toLowerCase() === (nuevaSolicitud.nombreEstudiante || "").trim().toLowerCase()
+            );
+            if (encontrada && encontrada.id) {
+              ticketFinal = encontrada.id;
+              nuevaSolicitud.id = ticketFinal;
+              activeTicketId = ticketFinal;
+              registradoEnBackend = true;
+              mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
+            }
+          }
+        } catch (checkErr) {
+          console.warn('No se pudo verificar el listado:', checkErr);
+        }
+
+        if (!registradoEnBackend) {
+          mensajeConfirmacion = `¡Solicitud generada en modo local (#${ticketFinal})!\n(Aviso: No se pudo contactar el servidor remoto o hubo un error: ${err.message}).`;
+        }
       }
     } else {
       mensajeConfirmacion = `¡Solicitud #${ticketFinal} generada con éxito (Modo Simulación)!\n\nSe ha creado el expediente para revisión y visto bueno.\n\n(Para activar el registro automático en Google Sheets y correos institucionales, configure la URL en portal/config.js).`;
@@ -2195,7 +2223,7 @@ document.addEventListener('DOMContentLoaded', () => {
               await fetch(EIQ_CONFIG.API_BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                credentials: 'omit',
+                redirect: 'follow',
                 body: JSON.stringify({
                   action: "devolver_jefatura",
                   ticketId: s.id,
@@ -2259,7 +2287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await fetch(EIQ_CONFIG.API_BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          credentials: 'omit',
+          redirect: 'follow',
           body: JSON.stringify({
             action: "autorizar_jefatura",
             ticketId: s.id,
