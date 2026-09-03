@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
           const merged = [];
 
-          // Las solicitudes del backend van primero
+          // Las solicitudes del backend van primero con normalización de estados
           for (const item of result.solicitudes) {
             if (!item.tipoLaboratorio) {
               const labNom = String(item.labNombre || "").toLowerCase();
@@ -269,6 +269,21 @@ document.addEventListener('DOMContentLoaded', () => {
               else if (labNom.includes("cotrafin")) item.tipoLaboratorio = "cotrafin";
               else item.tipoLaboratorio = "general";
             }
+
+            const est = String(item.estado || "").toUpperCase();
+            if (est.includes("DOCENTE") || est.includes("AUTORIZADO") || est === "EMITIDO") {
+              item.docenteAprobado = true;
+            }
+            if (est.includes("AUTORIZADO") || est === "EMITIDO") {
+              item.jefeAprobado = true;
+            }
+            if (est.includes("DEVUELTO")) {
+              item.devueltoDocente = true;
+            }
+            if (!item.docenteIniciales && item.docenteResponsable) {
+              item.docenteIniciales = item.docenteResponsable.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 4);
+            }
+
             merged.push(item);
           }
 
@@ -1115,11 +1130,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (previewDateEl) previewDateEl.textContent = new Date().toLocaleDateString('es-CR');
   }
 
-  function formatDateStr(isoDate) {
-    if (!isoDate) return "";
-    const parts = isoDate.split('-');
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return isoDate;
+  function formatDateStr(dateVal) {
+    if (!dateVal) return "";
+    if (typeof dateVal === 'string') {
+      const s = dateVal.trim();
+      if (!s || s === "—") return "";
+      // Si ya viene en formato DD/MM/YYYY o D/M/YYYY
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+      // Si viene en formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss...)
+      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return `${match[3]}/${match[2]}/${match[1]}`;
+      }
+    }
+    try {
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime())) {
+        const dia = String(d.getUTCDate()).padStart(2, '0');
+        const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const anio = d.getUTCFullYear();
+        return `${dia}/${mes}/${anio}`;
+      }
+    } catch (e) { /* sin-op */ }
+    return String(dateVal);
   }
 
   // --- Stepper Navigation Logic ---
@@ -1697,16 +1730,36 @@ document.addEventListener('DOMContentLoaded', () => {
       sig2Role = "Persona Docente encargada";
     }
 
-    const docenteInitials = current.docenteIniciales || 'DOC';
-    const sig2SealText = current.docenteAprobado ? `VISTO BUENO [${docenteInitials}]` : 'PENDIENTE VB';
-    const sig2DateText = current.docenteAprobado ? `Fecha: ${current.docenteFecha}` : 'Pendiente de firma';
+    const estUpperLetter = String(current.estado || "").toUpperCase();
+    const isDocApproved = Boolean(
+      current.docenteAprobado || 
+      estUpperLetter.includes("DOCENTE") || 
+      estUpperLetter.includes("AUTORIZADO") || 
+      current.jefeAprobado
+    );
+
+    let docenteInitials = current.docenteIniciales;
+    if (!docenteInitials && current.docenteResponsable) {
+      docenteInitials = current.docenteResponsable.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 4);
+    }
+    if (!docenteInitials) docenteInitials = 'DOC';
+
+    const sig2SealText = isDocApproved ? `VISTO BUENO [${docenteInitials}]` : 'PENDIENTE VB';
+    const fechaDocente = current.docenteFecha || current.fechaCreacion || 'Registrado digitalmente';
+    const sig2DateText = isDocApproved ? `Fecha: ${fechaDocente}` : 'Pendiente de firma';
 
     // Signature 3: Jefatura / Delegado Role Title exactly per template
+    const isJefeApproved = Boolean(
+      current.jefeAprobado || 
+      estUpperLetter.includes("AUTORIZADO") || 
+      estUpperLetter === "EMITIDO"
+    );
     const jefeInitials = current.jefeIniciales || config.titularIniciales;
     const jefeNombre = current.jefeNombre || config.titularNombre;
     const jefeTituloSig = current.jefeTituloSig || config.titularSig;
-    const sig3SealText = current.jefeAprobado ? `AUTORIZADO EIQ [${jefeInitials}]` : 'EN REVISIÓN';
-    const sig3DateText = current.jefeAprobado ? `Fecha: ${current.jefeFecha}` : 'Pendiente de autorización';
+    const sig3SealText = isJefeApproved ? `AUTORIZADO EIQ [${jefeInitials}]` : 'EN REVISIÓN';
+    const fechaJefe = current.jefeFecha || 'Pendiente de autorización';
+    const sig3DateText = isJefeApproved ? `Fecha: ${fechaJefe}` : 'Pendiente de autorización';
 
     return `
       <!-- Header Banner -->
@@ -1791,7 +1844,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="latex-sig-box">
           <div class="sig-drawn-preview">
-            <div class="sig-seal-approved ${current.docenteAprobado ? '' : 'sig-seal-pending'}">${sig2SealText}</div>
+            <div class="sig-seal-approved ${isDocApproved ? '' : 'sig-seal-pending'}">${sig2SealText}</div>
           </div>
           <div class="sig-name-line">${current.docenteResponsable}</div>
           <div class="sig-role-line">${sig2Role}</div>
@@ -1800,7 +1853,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="latex-sig-box">
           <div class="sig-drawn-preview">
-            <div class="sig-seal-approved ${current.jefeAprobado ? '' : 'sig-seal-pending'}">${sig3SealText}</div>
+            <div class="sig-seal-approved ${isJefeApproved ? '' : 'sig-seal-pending'}">${sig3SealText}</div>
           </div>
           <div class="sig-name-line">${jefeNombre}</div>
           <div class="sig-role-line">${jefeTituloSig}</div>
@@ -1936,7 +1989,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="btn-primary btn-sm" onclick="verCarta('${s.id}')">Ver Final</button>
           </div>
         `;
-      } else if (s.docenteAprobado && !s.jefeAprobado) {
+      } else if ((s.docenteAprobado || estUpper.includes("DOCENTE")) && !s.jefeAprobado) {
         actionBtn = `
           <div style="display: flex; gap: 0.35rem; align-items: center;">
             <button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Revisar Carta</button>
@@ -1969,6 +2022,21 @@ document.addEventListener('DOMContentLoaded', () => {
   filterSearch.addEventListener('input', renderTable);
   filterLab.addEventListener('change', renderTable);
 
+  const btnSyncSolicitudes = document.getElementById('btn-sync-solicitudes');
+  if (btnSyncSolicitudes) {
+    btnSyncSolicitudes.addEventListener('click', async () => {
+      const origText = btnSyncSolicitudes.textContent;
+      btnSyncSolicitudes.disabled = true;
+      btnSyncSolicitudes.textContent = "Sincronizando...";
+      await sincronizarSolicitudesBackend();
+      btnSyncSolicitudes.textContent = "¡Actualizado!";
+      setTimeout(() => {
+        btnSyncSolicitudes.textContent = origText;
+        btnSyncSolicitudes.disabled = false;
+      }, 1200);
+    });
+  }
+
   function updateKPIs() {
     document.getElementById('kpi-total').textContent = solicitudes.length;
     document.getElementById('kpi-pendientes').textContent = solicitudes.filter(s => !s.jefeAprobado).length;
@@ -1996,9 +2064,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.revisarSolicitudJefatura = function(id) {
-    const s = solicitudes.find(item => item.id === id);
+  window.revisarSolicitudJefatura = async function(id) {
+    let s = solicitudes.find(item => item.id === id);
     if (!s) return;
+
+    // Si estamos en modo Live y la solicitud aún no figura aprobada por docente en memoria,
+    // sincronizar en tiempo real con Google Sheets para capturar la aprobación reciente
+    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+      const estLocal = String(s.estado || "").toUpperCase();
+      if (!s.docenteAprobado && !estLocal.includes("DOCENTE") && !estLocal.includes("AUTORIZADO")) {
+        await sincronizarSolicitudesBackend();
+        const sActual = solicitudes.find(item => item.id === id);
+        if (sActual) s = sActual;
+      }
+    }
 
     activeTicketId = s.id;
 
@@ -2012,12 +2091,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Modal Footer Action Buttons
     const estUpperModal = String(s.estado || "").toUpperCase();
+    const isDocenteAprobadoModal = Boolean(
+      s.docenteAprobado || 
+      estUpperModal.includes("APROBADO_DOCENTE") || 
+      estUpperModal.includes("DOCENTE")
+    );
+    const isJefeAprobadoModal = Boolean(
+      s.jefeAprobado || 
+      estUpperModal.includes("AUTORIZADO")
+    );
+
     if (s.devueltoDocente || estUpperModal.includes("DEVUELTO")) {
       btnModalAutorizar.textContent = "Solicitud Devuelta por Docente";
       btnModalAutorizar.className = "btn-secondary";
       btnModalAutorizar.disabled = true;
       btnModalDevolver.classList.add('hidden');
-    } else if (s.jefeAprobado) {
+    } else if (isJefeAprobadoModal) {
       btnModalAutorizar.textContent = "Ver Carta Final";
       btnModalAutorizar.className = "btn-primary";
       btnModalAutorizar.disabled = false;
@@ -2026,7 +2115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         verCarta(s.id);
       };
       btnModalDevolver.classList.add('hidden');
-    } else if (s.docenteAprobado) {
+    } else if (isDocenteAprobadoModal) {
       btnModalAutorizar.textContent = "Autorizar y Emitir Carta Oficial";
       btnModalAutorizar.className = "btn-success";
       btnModalAutorizar.disabled = false;
