@@ -228,6 +228,46 @@ document.addEventListener('DOMContentLoaded', () => {
       jefeIniciales: "ASM",
       esDelegado: false,
       fechaCreacion: "18/08/2026 11:15"
+    },
+    {
+      id: "LG-PERM-2026-0039",
+      tipoLaboratorio: "general",
+      labNombre: "Laboratorio General EIQ",
+      nombreEstudiante: "Carlos Monge Vargas",
+      carneEstudiante: "B95012",
+      correoEstudiante: "carlos.monge@ucr.ac.cr",
+      tipoActividad: "Trabajo de laboratorio de curso",
+      nombreCursoProyecto: "IQ-0501 Laboratorio de Ingeniería Química I",
+      docenteResponsable: "Ing. Adrián Serrano Mora, Ph.D.",
+      correoDocente: "adrian.serrano@ucr.ac.cr",
+      docenteIniciales: "ASM",
+      fechaInicio: "2026-09-01",
+      fechaFinal: "2026-09-10",
+      descripcionActividad: "Pruebas de cinética de reacción con monitoreo espectrofotométrico en continuo.",
+      sinEquipos: false,
+      equipos: [
+        { nombre: "Espectrofotómetro UV-Visible (Shimadzu UV-1800)", placa: "UCR-84920", disponible: "Disponible en el laboratorio", capacitacion: false, solicitaAnalisis: false }
+      ],
+      sinReactivos: false,
+      reactivos: [
+        { nombre: "Azul de metileno solución 1%", cantidad: "250 mL", origen: "Disponible en el laboratorio de la EIQ" }
+      ],
+      consumibles: [],
+      integrantes: [],
+      inicialesEstudiante: "CMV",
+      signatureDataUrl: null,
+      estado: "V.B. Docente Otorgado",
+      docenteAprobado: true,
+      docenteFecha: "28/08/2026 10:15",
+      docenteObservaciones: "Visto bueno concedido. Metodología de muestreo revisada.",
+      jefeAprobado: false,
+      jefeFecha: null,
+      jefeNombre: "Ing. Adrián Serrano Mora, Ph.D.",
+      jefeCargo: "Jefe de Laboratorio",
+      jefeTituloSig: "V.B. Jefe de Laboratorios EIQ",
+      jefeIniciales: "ASM",
+      esDelegado: false,
+      fechaCreacion: "27/08/2026 14:20"
     }
   ];
 
@@ -253,8 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sincronizar todas las solicitudes con Google Sheets (fuente central de verdad)
   async function sincronizarSolicitudesBackend() {
     if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return;
+    const token = localStorage.getItem('eiq_jefatura_auth_token') || '';
+    if (!token) return;
+
     try {
-      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar`, {
+      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar&auth_token=${encodeURIComponent(token)}`, {
         method: 'GET',
         credentials: 'omit'
       });
@@ -264,6 +307,14 @@ document.addEventListener('DOMContentLoaded', () => {
         result = JSON.parse(rawText);
       } catch (e) {
         console.warn("Aviso: el listado del backend devolvió texto no-JSON:", rawText.slice(0, 150));
+      }
+      if (result && result.success === false && String(result.error || '').includes("403")) {
+        console.warn("Acceso administrativo rechazado por el servidor.");
+        localStorage.removeItem('eiq_jefatura_auth_token');
+        localStorage.removeItem('eiq_portal_role');
+        applyRoleVisibility('estudiante');
+        showGeneralAlert("Sesión Expirada", "Su sesión de Jefatura ha expirado o la contraseña fue actualizada. Por favor ingrese sus credenciales nuevamente.", true);
+        return;
       }
       if (result && result.success && Array.isArray(result.solicitudes)) {
         if (result.solicitudes.length > 0) {
@@ -297,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Mantener registros locales previos que no colisionen con los demos
           for (const s of solicitudes) {
-            if (!mapBackend.has(s.id) && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040")) {
+            if (!mapBackend.has(s.id) && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040") && !s.id.startsWith("LG-PERM-2026-0039")) {
               merged.push(s);
             }
           }
@@ -392,6 +443,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const solicitudesTableBody = document.getElementById('solicitudes-table-body');
   const filterSearch = document.getElementById('filter-search');
   const filterLab = document.getElementById('filter-lab');
+  const labFilterPills = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
+  let activeLabFilter = 'todos';
   const officialDocumentSheet = document.getElementById('official-document');
   const jefaturaModalLetterSheet = document.getElementById('jefatura-modal-letter-sheet');
 
@@ -480,17 +533,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleClose = () => {
       modal.classList.add('hidden');
       if (btnCerrar) btnCerrar.removeEventListener('click', handleClose);
+      subsanacionOriginalId = null;
+      if (subsanacionActiveBox) subsanacionActiveBox.classList.add('hidden');
     };
     if (btnCerrar) btnCerrar.addEventListener('click', handleClose, { once: true });
 
     const handleNueva = () => {
       modal.classList.add('hidden');
       if (btnNueva) btnNueva.removeEventListener('click', handleNueva);
+      subsanacionOriginalId = null;
+      if (subsanacionActiveBox) subsanacionActiveBox.classList.add('hidden');
       form.reset();
       if (sigCtx) {
         sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
         studentSignatureDataUrl = null;
       }
+      updateLabTypeForm();
       goToStep(1);
     };
     if (btnNueva) btnNueva.addEventListener('click', handleNueva, { once: true });
@@ -702,9 +760,40 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   // =========================================================================
+  // --- CATÁLOGO OFICIAL DE DOCENTES DE LA ESCUELA DE INGENIERÍA QUÍMICA ---
+  // =========================================================================
+  const CATALOG_DOCENTES_EIQ = [
+    { name: "Adolfo Ulate Brenes", email: "adolfo.ulate@ucr.ac.cr" },
+    { name: "Adrián Serrano Mora", email: "adrian.serrano@ucr.ac.cr" },
+    { name: "Alan Mora Vindas", email: "alan.moravindas@ucr.ac.cr" },
+    { name: "Bárbara Miranda Morales", email: "barbara.mirandamorales@ucr.ac.cr" },
+    { name: "Benito Stradi Granados", email: "benito.stradi@ucr.ac.cr" },
+    { name: "Bernardo Hernán Mora Gómez", email: "bernardo.mora@ucr.ac.cr" },
+    { name: "Cindy Torres Quirós", email: "cindy.torres@ucr.ac.cr" },
+    { name: "Dayatri Bolaños Picado", email: "dayatri.bolanos@ucr.ac.cr" },
+    { name: "Esteban Durán Herrera", email: "esteban.duranherrera@ucr.ac.cr" },
+    { name: "Esteban Richmond Salazar", email: "esteban.richmond@ucr.ac.cr" },
+    { name: "Jimena Incer Valverde", email: "jimena.incer@ucr.ac.cr" },
+    { name: "Juliana Da Luz Castro", email: "juliana.daluz@ucr.ac.cr" },
+    { name: "Karolina González Villalobos", email: "karolina.gonzalez_v@ucr.ac.cr" },
+    { name: "Laura Saborío Marín", email: "laura.saboriomarin@ucr.ac.cr" },
+    { name: "Lautaro Ramírez Varas", email: "lautaro.ramirezvaras@ucr.ac.cr" },
+    { name: "Leonardo Garro Mena", email: "leonardo.garromena@ucr.ac.cr" },
+    { name: "Luis Alejandro Arrieta Araya", email: "luis.arrietaaraya@ucr.ac.cr" },
+    { name: "María Elena Sibaja García", email: "maria.sibajagarcia@ucr.ac.cr" },
+    { name: "María Paula Macklin", email: "maria.macklin@ucr.ac.cr" },
+    { name: "Maureen Daniela Córdoba Pérez", email: "maureen.cordobaperez@ucr.ac.cr" },
+    { name: "Natalia Hernández Montero", email: "natalia.hernandezmontero@ucr.ac.cr" },
+    { name: "Natalia Montero Rambla", email: "natalia.monterorambla@ucr.ac.cr" },
+    { name: "Natalie Flores Díaz", email: "natalie.flores@ucr.ac.cr" },
+    { name: "Paula Solano Sánchez", email: "paula.solano@ucr.ac.cr" },
+    { name: "Randall Ramírez Loría", email: "randall.ramirezloria@ucr.ac.cr" }
+  ];
+
+  // =========================================================================
   // --- MOTOR DE AUTOCOMPLETADO (Typeahead: >= 2 caracteres, NO abre vacío) ---
   // =========================================================================
-  function attachTypeahead(inputEl, catalogList) {
+  function attachTypeahead(inputEl, catalogList, onSelect = null) {
     if (!inputEl) return;
 
     let wrapper = inputEl.parentElement;
@@ -736,7 +825,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const matches = catalogList.filter(item => {
         const nameNorm = item.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return nameNorm.includes(qNorm);
+        const emailNorm = item.email ? item.email.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+        return nameNorm.includes(qNorm) || emailNorm.includes(qNorm);
       }).slice(0, 7);
 
       if (matches.length === 0) {
@@ -761,10 +851,13 @@ document.addEventListener('DOMContentLoaded', () => {
           displayHtml = `${before}<span class="typeahead-item-highlight">${matchText}</span>${after}`;
         }
 
+        const tagText = item.email || item.tag || '';
+        const tagHtml = tagText ? `<span class="typeahead-item-tag">${tagText}</span>` : '';
+
         return `
           <li class="typeahead-item" data-val="${item.name.replace(/"/g, '&quot;')}">
             <span class="typeahead-item-text">${displayHtml}</span>
-            ${item.tag ? `<span class="typeahead-item-tag">${item.tag}</span>` : ''}
+            ${tagHtml}
           </li>
         `;
       }).join('');
@@ -772,10 +865,15 @@ document.addEventListener('DOMContentLoaded', () => {
       listEl.querySelectorAll('.typeahead-item').forEach(li => {
         li.addEventListener('mousedown', (e) => {
           e.preventDefault();
-          inputEl.value = li.getAttribute('data-val');
+          const selectedVal = li.getAttribute('data-val');
+          inputEl.value = selectedVal;
           removeList();
           inputEl.dispatchEvent(new Event('input', { bubbles: true }));
           inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          if (typeof onSelect === 'function') {
+            const foundItem = catalogList.find(it => it.name === selectedVal);
+            if (foundItem) onSelect(foundItem);
+          }
           updateSummary();
         });
       });
@@ -806,10 +904,15 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (e.key === 'Enter') {
         if (activeItem) {
           e.preventDefault();
-          inputEl.value = activeItem.getAttribute('data-val');
+          const selectedVal = activeItem.getAttribute('data-val');
+          inputEl.value = selectedVal;
           removeList();
           inputEl.dispatchEvent(new Event('input', { bubbles: true }));
           inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+          if (typeof onSelect === 'function') {
+            const foundItem = catalogList.find(it => it.name === selectedVal);
+            if (foundItem) onSelect(foundItem);
+          }
           updateSummary();
         }
       } else if (e.key === 'Escape') {
@@ -1221,6 +1324,274 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // =========================================================================
+  // --- AUTOCOMPLETADO ASISTIDO DE DOCENTES EIQ CON CORREO OFICIAL ---
+  // =========================================================================
+  const inputDocente = document.getElementById('docenteResponsable');
+  const inputCorreoDocente = document.getElementById('correoDocente');
+  if (inputDocente && inputCorreoDocente) {
+    attachTypeahead(inputDocente, CATALOG_DOCENTES_EIQ, (docente) => {
+      inputDocente.value = docente.name;
+      inputCorreoDocente.value = docente.email;
+      inputDocente.dispatchEvent(new Event('input', { bubbles: true }));
+      inputCorreoDocente.dispatchEvent(new Event('input', { bubbles: true }));
+      inputDocente.dispatchEvent(new Event('change', { bubbles: true }));
+      inputCorreoDocente.dispatchEvent(new Event('change', { bubbles: true }));
+      updateSummary();
+    });
+  }
+
+  // =========================================================================
+  // --- GESTIÓN DE SUBSANACIÓN Y RECARGA DE SOLICITUDES DEVUELTAS ---
+  // =========================================================================
+  const btnOpenSubsanacion = document.getElementById('btn-open-subsanacion');
+  const modalSubsanacion = document.getElementById('modal-subsanacion');
+  const btnCloseModalSubsanacion = document.getElementById('btn-close-modal-subsanacion');
+  const btnCancelModalSubsanacion = document.getElementById('btn-cancel-modal-subsanacion');
+  const btnConfirmSubsanacion = document.getElementById('btn-confirm-subsanacion');
+  const inputSubsanacionCodigo = document.getElementById('subsanacion-codigo');
+  const inputSubsanacionCarne = document.getElementById('subsanacion-carne');
+  const subsanacionStatus = document.getElementById('subsanacion-status');
+  const subsanacionError = document.getElementById('subsanacion-error');
+  const subsanacionActiveBox = document.getElementById('subsanacion-active-box');
+  const subsanacionActiveId = document.getElementById('subsanacion-active-id');
+  const subsanacionActiveMotivo = document.getElementById('subsanacion-active-motivo');
+  const btnCancelSubsanacion = document.getElementById('btn-cancel-subsanacion');
+  let subsanacionOriginalId = null;
+
+  function abrirModalSubsanacion() {
+    if (!modalSubsanacion) return;
+    if (inputSubsanacionCodigo) inputSubsanacionCodigo.value = '';
+    if (inputSubsanacionCarne) inputSubsanacionCarne.value = '';
+    if (subsanacionStatus) subsanacionStatus.style.display = 'none';
+    if (subsanacionError) subsanacionError.style.display = 'none';
+    modalSubsanacion.classList.remove('hidden');
+    if (inputSubsanacionCodigo) inputSubsanacionCodigo.focus();
+  }
+
+  function cerrarModalSubsanacion() {
+    if (modalSubsanacion) modalSubsanacion.classList.add('hidden');
+  }
+
+  if (btnOpenSubsanacion) btnOpenSubsanacion.addEventListener('click', abrirModalSubsanacion);
+  if (btnCloseModalSubsanacion) btnCloseModalSubsanacion.addEventListener('click', cerrarModalSubsanacion);
+  if (btnCancelModalSubsanacion) btnCancelModalSubsanacion.addEventListener('click', cerrarModalSubsanacion);
+
+  function populateSubsanacionData(solicitudData, motivo) {
+    if (!solicitudData) return;
+
+    // 1. Laboratorio
+    let labVal = 'general';
+    if (solicitudData.tipoLaboratorio) {
+      const l = String(solicitudData.tipoLaboratorio).toLowerCase();
+      if (l.includes('instrumental')) labVal = 'instrumental';
+      else if (l.includes('cotrafin')) labVal = 'cotrafin';
+      else labVal = 'general';
+    }
+    const labRadio = document.querySelector(`input[name="tipoLaboratorio"][value="${labVal}"]`);
+    if (labRadio) {
+      labRadio.checked = true;
+      labRadio.dispatchEvent(new Event('change', { bubbles: true }));
+      updateLabTypeForm();
+    }
+
+    // 2. Datos personales del estudiante
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null) {
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    };
+
+    setVal('nombreEstudiante', solicitudData.nombreEstudiante || '');
+    setVal('carneEstudiante', solicitudData.carneEstudiante || '');
+    setVal('correoEstudiante', solicitudData.correoEstudiante || '');
+
+    // 3. Integrantes si aplica (General)
+    if (labVal === 'general' && Array.isArray(solicitudData.integrantes) && solicitudData.integrantes.length > 0) {
+      integrantesContainer.innerHTML = '';
+      solicitudData.integrantes.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'dynamic-row integrante-row';
+        row.innerHTML = `
+          <div class="row-cell-main">
+            <input type="text" class="form-control int-nombre" placeholder="Nombre completo del integrante" value="${item.nombre || ''}" required>
+          </div>
+          <div class="row-cell-qty">
+            <input type="text" class="form-control int-carne" placeholder="Carné (Ej. B98765)" value="${item.carne || ''}" required>
+          </div>
+          <button type="button" class="btn-row-del" title="Eliminar fila">✕</button>
+        `;
+        integrantesContainer.appendChild(row);
+        attachDeleteHandler(row);
+      });
+    }
+
+    // 4. Actividad, Docente y Fechas
+    setTimeout(() => {
+      if (solicitudData.tipoActividad) setVal('tipoActividad', solicitudData.tipoActividad);
+      setVal('nombreCursoProyecto', solicitudData.nombreCursoProyecto || '');
+      setVal('docenteResponsable', solicitudData.docenteResponsable || '');
+      setVal('correoDocente', solicitudData.correoDocente || '');
+      setVal('fechaInicio', solicitudData.fechaInicio || '');
+      setVal('fechaFinal', solicitudData.fechaFinal || '');
+      setVal('descripcionActividad', solicitudData.descripcionActividad || '');
+    }, 60);
+
+    // 5. Equipos
+    equiposContainer.innerHTML = '';
+    if (solicitudData.sinEquipos || solicitudData.noEquipos) {
+      chkNoEquipos.checked = true;
+      chkNoEquipos.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (Array.isArray(solicitudData.equipos) && solicitudData.equipos.length > 0) {
+      chkNoEquipos.checked = false;
+      btnAddEquipo.disabled = false;
+      btnAddEquipo.style.opacity = '1';
+      solicitudData.equipos.forEach(eq => {
+        equiposContainer.appendChild(createEquipoRow(labVal, eq));
+      });
+    } else {
+      equiposContainer.appendChild(createEquipoRow(labVal));
+    }
+
+    // 6. Reactivos
+    reactivosContainer.innerHTML = '';
+    if (solicitudData.sinReactivos || solicitudData.noReactivos) {
+      chkNoReactivos.checked = true;
+      chkNoReactivos.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (Array.isArray(solicitudData.reactivos) && solicitudData.reactivos.length > 0) {
+      chkNoReactivos.checked = false;
+      btnAddReactivo.disabled = false;
+      btnAddReactivo.style.opacity = '1';
+      solicitudData.reactivos.forEach(rec => {
+        reactivosContainer.appendChild(createReactivoRow(labVal, rec));
+      });
+    } else {
+      reactivosContainer.appendChild(createReactivoRow(labVal));
+    }
+
+    // 7. Consumibles (si instrumental)
+    if (labVal === 'instrumental' && consumiblesContainer) {
+      consumiblesContainer.innerHTML = '';
+      if (Array.isArray(solicitudData.consumibles) && solicitudData.consumibles.length > 0) {
+        solicitudData.consumibles.forEach(con => {
+          consumiblesContainer.appendChild(createConsumibleRow(con));
+        });
+      } else {
+        consumiblesContainer.appendChild(createConsumibleRow());
+      }
+    }
+
+    // 8. Limpiar firma electrónica y requerir nuevo trazo
+    if (canvasFirma && sigCtx) {
+      sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
+      studentSignatureDataUrl = null;
+    }
+    setVal('inicialesEstudiante', '');
+
+    // 9. Registrar id subsanado y mostrar tarjeta informativa activa
+    subsanacionOriginalId = solicitudData.id || (inputSubsanacionCodigo ? inputSubsanacionCodigo.value.trim().toUpperCase() : '');
+    if (subsanacionActiveBox) {
+      subsanacionActiveBox.classList.remove('hidden');
+      if (subsanacionActiveId) subsanacionActiveId.textContent = subsanacionOriginalId;
+      if (subsanacionActiveMotivo) {
+        subsanacionActiveMotivo.textContent = motivo || 'Por favor atienda las observaciones indicadas y envíe una nueva solicitud formal.';
+      }
+    }
+
+    updateSummary();
+  }
+
+  if (btnConfirmSubsanacion) {
+    btnConfirmSubsanacion.addEventListener('click', async () => {
+      const codigo = inputSubsanacionCodigo ? inputSubsanacionCodigo.value.trim().toUpperCase() : '';
+      const carne = inputSubsanacionCarne ? inputSubsanacionCarne.value.trim().toUpperCase() : '';
+
+      if (!codigo || !carne) {
+        if (subsanacionError) {
+          subsanacionError.textContent = 'Debe ingresar tanto el código de solicitud como el número de carné institucional.';
+          subsanacionError.style.display = 'block';
+        }
+        return;
+      }
+
+      if (subsanacionError) subsanacionError.style.display = 'none';
+      if (subsanacionStatus) subsanacionStatus.style.display = 'block';
+      btnConfirmSubsanacion.disabled = true;
+
+      try {
+        let respData = null;
+
+        if (EIQ_CONFIG.IS_LIVE_MODE && EIQ_CONFIG.API_BACKEND_URL) {
+          const url = `${EIQ_CONFIG.API_BACKEND_URL}?action=obtener_subsanacion&id=${encodeURIComponent(codigo)}&carne=${encodeURIComponent(carne)}&_nc=${Date.now()}`;
+          const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+          const raw = await res.text();
+          try {
+            respData = JSON.parse(raw);
+          } catch (e) {
+            respData = { success: false, error: 'Respuesta inesperada del servidor institucional.' };
+          }
+        } else {
+          // Modo local o fallback con caché local
+          const localList = JSON.parse(localStorage.getItem('eiq_solicitudes_locales') || '[]');
+          const encontrada = localList.find(s => String(s.id).toUpperCase() === codigo);
+          if (!encontrada) {
+            respData = { success: false, error: `No se encontró ninguna solicitud con el código "${codigo}".` };
+          } else if (String(encontrada.carneEstudiante || '').toUpperCase() !== carne) {
+            respData = { success: false, error: 'El carné no coincide con el solicitante registrado para este trámite.' };
+          } else {
+            respData = {
+              success: true,
+              ticketId: codigo,
+              motivoDevolucion: encontrada.docenteObservaciones || encontrada.observacionesDevolucion || 'Corrección solicitada por docente / jefatura.',
+              data: encontrada
+            };
+          }
+        }
+
+        if (respData && respData.success) {
+          populateSubsanacionData(respData.data, respData.motivoDevolucion);
+          cerrarModalSubsanacion();
+          goToStep(1);
+          showGeneralAlert(
+            'Expediente Cargado para Subsanación',
+            `Se han cargado exitosamente los datos de la solicitud ${codigo}.\n\nPor favor revise las observaciones del docente o la jefatura, realice las correcciones requeridas y firme nuevamente en el Paso 4 para generar un nuevo trámite formal.`
+          );
+        } else {
+          if (subsanacionError) {
+            subsanacionError.textContent = (respData && respData.error) ? respData.error : 'No se pudo recuperar la solicitud especificada.';
+            subsanacionError.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error('Error al consultar subsanación:', err);
+        if (subsanacionError) {
+          subsanacionError.textContent = 'Ocurrió un error de comunicación con el servidor. Por favor intente nuevamente.';
+          subsanacionError.style.display = 'block';
+        }
+      } finally {
+        if (subsanacionStatus) subsanacionStatus.style.display = 'none';
+        btnConfirmSubsanacion.disabled = false;
+      }
+    });
+  }
+
+  if (btnCancelSubsanacion) {
+    btnCancelSubsanacion.addEventListener('click', () => {
+      subsanacionOriginalId = null;
+      if (subsanacionActiveBox) subsanacionActiveBox.classList.add('hidden');
+      form.reset();
+      if (sigCtx) {
+        sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
+        studentSignatureDataUrl = null;
+      }
+      updateLabTypeForm();
+      updateSummary();
+    });
+  }
+
   // --- Real-time Summary Update ---
   const inputsToListen = form.querySelectorAll('input, select, textarea');
   inputsToListen.forEach(input => {
@@ -1485,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const nuevaSolicitud = {
       id: newReqId,
+      subsanacionDe: subsanacionOriginalId || null,
       tipoLaboratorio: labType,
       labNombre: labName,
       nombreEstudiante: document.getElementById('nombreEstudiante').value,
@@ -1658,6 +2030,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function switchTab(targetId) {
+    const currentRole = localStorage.getItem('eiq_portal_role') || 'estudiante';
+    if (currentRole !== 'jefatura' && targetId !== 'estudiante') {
+      targetId = 'estudiante';
+    }
     navTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === targetId));
     tabViews.forEach(v => v.classList.toggle('active', v.id === `tab-${targetId}`));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2180,16 +2556,147 @@ document.addEventListener('DOMContentLoaded', () => {
     switchTab('jefatura');
   });
 
+  // Manejo de chips de motivos frecuentes para devolución docente
+  document.querySelectorAll('.docente-quick-chips .btn-text-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const text = chip.getAttribute('data-obs');
+      if (textareaDocenteObs && text) {
+        if (!textareaDocenteObs.value.trim()) {
+          textareaDocenteObs.value = text;
+        } else if (!textareaDocenteObs.value.includes(text)) {
+          textareaDocenteObs.value = textareaDocenteObs.value.trim() + " " + text;
+        }
+        textareaDocenteObs.focus();
+      }
+    });
+  });
+
+  // --- Detección Preventiva de Conflictos / Solapamiento de Fechas en Equipos ---
+  function detectarConflictosEquipos(solicitud, listaCompleta) {
+    if (!solicitud || solicitud.sinEquipos || !Array.isArray(solicitud.equipos) || solicitud.equipos.length === 0) {
+      return [];
+    }
+    if (!solicitud.fechaInicio || !solicitud.fechaFinal) {
+      return [];
+    }
+
+    const normFecha = (f) => {
+      if (!f) return null;
+      const m = String(f).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? m[0] : f;
+    };
+
+    const fInicioA = normFecha(solicitud.fechaInicio);
+    const fFinalA = normFecha(solicitud.fechaFinal);
+    if (!fInicioA || !fFinalA) return [];
+
+    const normTexto = (t) => {
+      return String(t || "")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    };
+
+    const normPlaca = (p) => {
+      const s = String(p || "").trim().toUpperCase();
+      if (!s || s === "N/A" || s === "POR ASIGNAR" || s.includes("ANÁLISIS") || s.includes("ANALISIS")) {
+        return "";
+      }
+      return s;
+    };
+
+    const conflictos = [];
+
+    for (const otra of listaCompleta) {
+      if (!otra || otra.id === solicitud.id) continue;
+
+      // Omitir solicitudes canceladas o devueltas
+      const estOtra = String(otra.estado || "").toUpperCase();
+      if (otra.devueltoDocente || estOtra.includes("DEVUELTO") || estOtra.includes("RECHAZADO")) {
+        continue;
+      }
+
+      if (otra.sinEquipos || !Array.isArray(otra.equipos) || otra.equipos.length === 0) {
+        continue;
+      }
+
+      const fInicioB = normFecha(otra.fechaInicio);
+      const fFinalB = normFecha(otra.fechaFinal);
+      if (!fInicioB || !fFinalB) continue;
+
+      // Verificar solapamiento de fechas: max(inicioA, inicioB) <= min(finA, finB)
+      const haySolapamiento = (fInicioA <= fFinalB) && (fFinalA >= fInicioB);
+      if (!haySolapamiento) continue;
+
+      // Comparar equipos
+      for (const eqA of solicitud.equipos) {
+        const nomA = normTexto(eqA.nombre);
+        const placaA = normPlaca(eqA.placa);
+        if (!nomA && !placaA) continue;
+
+        for (const eqB of otra.equipos) {
+          const nomB = normTexto(eqB.nombre);
+          const placaB = normPlaca(eqB.placa);
+
+          let esMismo = false;
+          if (placaA && placaB && placaA === placaB) {
+            esMismo = true;
+          } else if (nomA && nomB) {
+            if (nomA === nomB) {
+              esMismo = true;
+            } else if (nomA.length >= 8 && nomB.length >= 8 && (nomA.includes(nomB) || nomB.includes(nomA))) {
+              esMismo = true;
+            }
+          }
+
+          if (esMismo) {
+            conflictos.push({
+              equipoNombre: eqA.nombre || eqB.nombre,
+              placa: placaA || placaB || "",
+              otroId: otra.id,
+              otroEstudiante: otra.nombreEstudiante,
+              otroCarne: otra.carneEstudiante,
+              otroPeriodo: `${formatDateStr(fInicioB)} al ${formatDateStr(fFinalB)}`,
+              otroEstado: otra.estado || (otra.jefeAprobado ? "Autorizado" : "En trámite")
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    return conflictos;
+  }
+
+  function actualizarContadoresFiltrosLab() {
+    const elTodos = document.getElementById('count-filter-todos');
+    const elGen = document.getElementById('count-filter-general');
+    const elInst = document.getElementById('count-filter-instrumental');
+    const elCot = document.getElementById('count-filter-cotrafin');
+
+    if (elTodos) elTodos.textContent = solicitudes.length;
+    if (elGen) elGen.textContent = solicitudes.filter(s => (s.tipoLaboratorio || 'general') === 'general').length;
+    if (elInst) elInst.textContent = solicitudes.filter(s => s.tipoLaboratorio === 'instrumental').length;
+    if (elCot) elCot.textContent = solicitudes.filter(s => s.tipoLaboratorio === 'cotrafin').length;
+  }
+
   // --- Jefatura Table & Dashboard Logic ---
   function renderTable() {
-    const searchTerm = filterSearch.value.toLowerCase();
-    const labFilter = filterLab.value;
+    const searchTerm = (filterSearch ? filterSearch.value : "").toLowerCase().trim();
+    const labFilter = activeLabFilter || (filterLab ? filterLab.value : 'todos') || 'todos';
+
+    actualizarContadoresFiltrosLab();
 
     const filtered = solicitudes.filter(s => {
-      const matchSearch = s.nombreEstudiante.toLowerCase().includes(searchTerm) ||
-                          s.carneEstudiante.toLowerCase().includes(searchTerm) ||
-                          s.id.toLowerCase().includes(searchTerm);
-      const matchLab = labFilter === 'todos' || s.tipoLaboratorio === labFilter;
+      const matchSearch = !searchTerm || 
+                          (s.nombreEstudiante || "").toLowerCase().includes(searchTerm) ||
+                          (s.carneEstudiante || "").toLowerCase().includes(searchTerm) ||
+                          (s.id || "").toLowerCase().includes(searchTerm) ||
+                          (s.docenteResponsable || "").toLowerCase().includes(searchTerm);
+      const sLab = s.tipoLaboratorio || 'general';
+      const matchLab = labFilter === 'todos' || sLab === labFilter;
       return matchSearch && matchLab;
     });
 
@@ -2244,6 +2751,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let periodoDisplay = s.tipoLaboratorio === 'cotrafin' ? '<small>Factibilidad</small>' : `<small>${formatDateStr(s.fechaInicio)} - ${formatDateStr(s.fechaFinal)}</small>`;
 
+      // Detectar colisiones / solapamiento preventivo de equipos
+      const conflictos = detectarConflictosEquipos(s, solicitudes);
+      if (conflictos.length > 0) {
+        const tooltipConflictos = `Solapamiento de fechas con: ${conflictos.map(c => `${c.equipoNombre} en #${c.otroId} (${c.otroEstudiante})`).join(', ')}`;
+        const safeTooltip = tooltipConflictos.replace(/"/g, '&quot;');
+        periodoDisplay += `<br><span class="badge-warning-conflict" title="${safeTooltip}">Solapamiento de Equipos (${conflictos.length})</span>`;
+      }
+
       return `
         <tr>
           <td><strong style="color: var(--ucr-blue-light); font-family: var(--font-mono);">${s.id}</strong></td>
@@ -2251,7 +2766,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <strong>${s.nombreEstudiante}</strong><br>
             <small style="color: var(--text-muted);">${s.carneEstudiante}</small>
           </td>
-          <td>${s.labNombre}</td>
+          <td>${s.labNombre || (s.tipoLaboratorio === 'instrumental' ? 'Laboratorio Instrumental' : (s.tipoLaboratorio === 'cotrafin' ? 'COTRAFIN' : 'Laboratorio General'))}</td>
           <td>${s.docenteResponsable}</td>
           <td>${periodoDisplay}</td>
           <td><span class="badge-pill ${statusClass}">${estadoLabel}</span></td>
@@ -2261,8 +2776,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  filterSearch.addEventListener('input', renderTable);
-  filterLab.addEventListener('change', renderTable);
+  if (filterSearch) filterSearch.addEventListener('input', renderTable);
+  if (filterLab) {
+    filterLab.addEventListener('change', () => {
+      activeLabFilter = filterLab.value;
+      const pills = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
+      pills.forEach(p => p.classList.toggle('active', p.getAttribute('data-lab') === activeLabFilter));
+      renderTable();
+    });
+  }
+
+  // Interacción de pastillas de filtro rápido por laboratorio
+  const pillsFiltroLab = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
+  if (pillsFiltroLab.length > 0) {
+    pillsFiltroLab.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const selectedLab = pill.getAttribute('data-lab') || 'todos';
+        activeLabFilter = selectedLab;
+        pillsFiltroLab.forEach(p => p.classList.toggle('active', p === pill));
+        if (filterLab) filterLab.value = selectedLab;
+        renderTable();
+      });
+    });
+  }
 
   const btnSyncSolicitudes = document.getElementById('btn-sync-solicitudes');
   if (btnSyncSolicitudes) {
@@ -2285,6 +2821,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('kpi-aprobadas').textContent = solicitudes.filter(s => s.jefeAprobado).length;
     document.getElementById('badge-docente-count').textContent = solicitudes.filter(s => !s.docenteAprobado).length;
     document.getElementById('badge-jefatura-count').textContent = solicitudes.filter(s => s.docenteAprobado && !s.jefeAprobado).length;
+    actualizarContadoresFiltrosLab();
   }
 
   // --- Modal de Revisión en Formato Carta Oficial para Jefatura ---
@@ -2330,6 +2867,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render live document sheet into Jefatura Modal
     if (jefaturaModalLetterSheet) {
       jefaturaModalLetterSheet.innerHTML = generateLetterHTML(s);
+    }
+
+    // Renderizar alerta de disponibilidad / solapamiento de fechas si existen conflictos
+    const conflictAlertContainer = document.getElementById('jefatura-conflict-alert-container');
+    if (conflictAlertContainer) {
+      const conflictos = detectarConflictosEquipos(s, solicitudes);
+      if (conflictos.length > 0) {
+        conflictAlertContainer.innerHTML = `
+          <div class="conflict-alert-card">
+            <div class="conflict-alert-title">
+              Advertencia Preventiva: Solapamiento de Fechas en Equipos
+            </div>
+            <div class="conflict-alert-desc">
+              Este expediente solicita equipos que coinciden en fechas con otros trámites activos en el sistema:
+            </div>
+            <ul class="conflict-alert-list">
+              ${conflictos.map(c => `
+                <li>
+                  <strong>${c.equipoNombre}${c.placa ? ` (Placa: ${c.placa})` : ''}</strong>: Coincide con el trámite <strong>#${c.otroId}</strong> (${c.otroEstudiante}, periodo del ${c.otroPeriodo} — <em>${c.otroEstado}</em>).
+                </li>
+              `).join('')}
+            </ul>
+            <div class="conflict-alert-footer">
+              Recomendación: Verifique con el personal técnico de laboratorio o con las personas docentes la disponibilidad real o la coordinación de turnos antes de autorizar.
+            </div>
+          </div>
+        `;
+      } else {
+        conflictAlertContainer.innerHTML = "";
+      }
     }
 
     // Modal Footer Action Buttons
@@ -2398,7 +2965,8 @@ document.addEventListener('DOMContentLoaded', () => {
                   ticketId: s.id,
                   motivo: motivo.trim(),
                   jefeNombre: jNombre,
-                  jefeCargo: jCargo
+                  jefeCargo: jCargo,
+                  auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
                 })
               });
             } catch (err) {
@@ -2464,7 +3032,8 @@ document.addEventListener('DOMContentLoaded', () => {
             jefeCargo: s.jefeCargo,
             jefeTituloSig: s.jefeTituloSig,
             jefeIniciales: s.jefeIniciales,
-            esDelegado: s.esDelegado
+            esDelegado: s.esDelegado,
+            auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
           })
         });
       } catch (err) {
@@ -8800,11 +9369,251 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // Initial setup
+  // ==========================================================================
+  // CONTROL DE ACCESO POR ROL INSTITUCIONAL (MODO CAMALEÓN SEGURO)
+  // ==========================================================================
+  const ROLE_STORAGE_KEY = 'eiq_portal_role';
+  const AUTH_TOKEN_KEY = 'eiq_jefatura_auth_token';
+
+  const roleNav = document.getElementById('main-role-nav');
+  const adminElements = document.querySelectorAll('.admin-only');
+  const adminRoleBadge = document.getElementById('admin-role-badge');
+  const btnSwitchToStudent = document.getElementById('btn-switch-to-student');
+  const linkAdminLogin = document.getElementById('link-admin-login');
+
+  // Modal institucional de clave
+  const modalAdminPin = document.getElementById('modal-admin-pin');
+  const inputAdminPin = document.getElementById('input-admin-pin');
+  const adminPinStatus = document.getElementById('admin-pin-status');
+  const adminPinError = document.getElementById('admin-pin-error');
+  const btnClosePin = document.getElementById('btn-close-modal-pin');
+  const btnCancelPin = document.getElementById('btn-cancel-modal-pin');
+  const btnConfirmPin = document.getElementById('btn-confirm-modal-pin');
+
+  function getEffectiveRole() {
+    const params = new URLSearchParams(window.location.search);
+    const claveParam = (params.get('clave') || params.get('password') || params.get('pin') || '').trim();
+    const modoParam = (params.get('modo') || '').toLowerCase();
+
+    // 1. Solicitud explícita de salir a modo estudiante o cerrar sesión
+    if (modoParam === 'estudiante' || params.get('logout') === '1') {
+      localStorage.removeItem(ROLE_STORAGE_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      return 'estudiante';
+    }
+
+    // 2. Si viene una clave por URL (ej: marcador personal seguro)
+    if (claveParam) {
+      verificarClaveDirectaUrl(claveParam);
+    }
+
+    // 3. Memoria persistente autenticada en este navegador
+    const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
+    const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (savedRole === 'jefatura' && savedToken) {
+      return 'jefatura';
+    }
+
+    return 'estudiante';
+  }
+
+  async function verificarClaveDirectaUrl(clave) {
+    if (!clave) return;
+    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+      try {
+        const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=validar_clave_jefatura&clave=${encodeURIComponent(clave)}`);
+        const res = await resp.json();
+        if (res && res.success) {
+          localStorage.setItem(AUTH_TOKEN_KEY, res.token);
+          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          // Limpiar la contraseña de la barra de direcciones por seguridad
+          if (window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          applyRoleVisibility('jefatura');
+          return;
+        }
+      } catch (e) {
+        console.warn("Aviso al validar credencial directa:", e);
+      }
+    }
+  }
+
+  function applyRoleVisibility(role, isInitialLoad = false) {
+    const isJefatura = (role === 'jefatura');
+
+    // Elementos administrativos (pestañas y botón demo)
+    adminElements.forEach(el => {
+      el.classList.toggle('role-hidden', !isJefatura);
+    });
+
+    // Barra de pestañas completa: visible solo para Jefatura
+    if (roleNav) {
+      roleNav.classList.toggle('role-hidden', !isJefatura);
+    }
+
+    // Distintivo de Jefatura en el header
+    if (adminRoleBadge) {
+      adminRoleBadge.style.display = isJefatura ? 'inline-flex' : 'none';
+    }
+
+    // Enlace en el footer
+    if (linkAdminLogin) {
+      linkAdminLogin.textContent = isJefatura ? "Cerrar sesión Jefatura" : "Acceso Funcionarios";
+    }
+
+    if (isJefatura) {
+      // Sincronizar datos y actualizar paneles administrativos
+      sincronizarSolicitudesBackend();
+      updateKPIs();
+      renderTable();
+
+      const params = new URLSearchParams(window.location.search);
+      const requestedTab = params.get('tab') || (params.get('rol') === 'jefatura' ? 'jefatura' : null);
+      if (requestedTab && ['jefatura', 'historico', 'docente', 'carta'].includes(requestedTab)) {
+        switchTab(requestedTab);
+      } else {
+        switchTab('jefatura');
+      }
+    } else {
+      // En modo estudiante, la vista siempre se mantiene en el formulario
+      switchTab('estudiante');
+    }
+  }
+
+  function openAdminPinModal() {
+    if (!modalAdminPin) return;
+    if (inputAdminPin) inputAdminPin.value = "";
+    if (adminPinStatus) adminPinStatus.style.display = "none";
+    if (adminPinError) adminPinError.style.display = "none";
+    modalAdminPin.classList.remove('hidden');
+    if (inputAdminPin) {
+      setTimeout(() => inputAdminPin.focus(), 60);
+    }
+  }
+
+  function closeAdminPinModal() {
+    if (!modalAdminPin) return;
+    modalAdminPin.classList.add('hidden');
+  }
+
+  async function checkAdminPin() {
+    if (!inputAdminPin) return;
+    const clave = inputAdminPin.value.trim();
+    if (!clave) {
+      if (adminPinError) {
+        adminPinError.textContent = "Por favor ingrese la contraseña de Jefatura.";
+        adminPinError.style.display = "block";
+      }
+      return;
+    }
+
+    if (adminPinStatus) adminPinStatus.style.display = "block";
+    if (adminPinError) adminPinError.style.display = "none";
+    if (btnConfirmPin) btnConfirmPin.disabled = true;
+
+    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+      try {
+        const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=validar_clave_jefatura&clave=${encodeURIComponent(clave)}`);
+        const data = await resp.json();
+
+        if (data && data.success) {
+          localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          closeAdminPinModal();
+          applyRoleVisibility('jefatura');
+          showGeneralAlert("Acceso Concedido", "Sesión de Jefatura autenticada exitosamente.");
+        } else {
+          if (adminPinError) {
+            adminPinError.textContent = data.error || "Contraseña incorrecta. Por favor verifique.";
+            adminPinError.style.display = "block";
+          }
+          inputAdminPin.focus();
+          inputAdminPin.select();
+        }
+      } catch (err) {
+        console.warn("Aviso al validar clave con backend:", err);
+        // Fallback contingencia si hay error de red
+        if (clave === 'EIQ#Jefatura2026!') {
+          localStorage.setItem(AUTH_TOKEN_KEY, 'fallback_secure_token');
+          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          closeAdminPinModal();
+          applyRoleVisibility('jefatura');
+          showGeneralAlert("Acceso Concedido", "Sesión de Jefatura habilitada en modo contingencia.");
+        } else {
+          if (adminPinError) {
+            adminPinError.textContent = "Error al conectar con el servidor institucional. Verifique su conexión.";
+            adminPinError.style.display = "block";
+          }
+        }
+      } finally {
+        if (adminPinStatus) adminPinStatus.style.display = "none";
+        if (btnConfirmPin) btnConfirmPin.disabled = false;
+      }
+    } else {
+      // Modo Simulación Local (sin backend live)
+      if (clave === 'EIQ#Jefatura2026!' || clave.toLowerCase() === 'jefatura') {
+        localStorage.setItem(AUTH_TOKEN_KEY, 'simulated_admin_token');
+        localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+        closeAdminPinModal();
+        applyRoleVisibility('jefatura');
+        showGeneralAlert("Acceso Concedido", "Modo Simulación: Jefatura activa.");
+      } else {
+        if (adminPinError) {
+          adminPinError.textContent = "Contraseña incorrecta.";
+          adminPinError.style.display = "block";
+        }
+      }
+      if (adminPinStatus) adminPinStatus.style.display = "none";
+      if (btnConfirmPin) btnConfirmPin.disabled = false;
+    }
+  }
+
+  if (btnSwitchToStudent) {
+    btnSwitchToStudent.addEventListener('click', () => {
+      localStorage.removeItem(ROLE_STORAGE_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      applyRoleVisibility('estudiante');
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      showGeneralAlert("Modo Estudiante", "Ha cambiado a la vista pública de estudiante.");
+    });
+  }
+
+  if (linkAdminLogin) {
+    linkAdminLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      const currentRole = localStorage.getItem(ROLE_STORAGE_KEY);
+      if (currentRole === 'jefatura') {
+        localStorage.removeItem(ROLE_STORAGE_KEY);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        applyRoleVisibility('estudiante');
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        showGeneralAlert("Sesión Finalizada", "Ha cerrado la sesión administrativa de Jefatura.");
+      } else {
+        openAdminPinModal();
+      }
+    });
+  }
+
+  if (btnClosePin) btnClosePin.addEventListener('click', closeAdminPinModal);
+  if (btnCancelPin) btnCancelPin.addEventListener('click', closeAdminPinModal);
+  if (btnConfirmPin) btnConfirmPin.addEventListener('click', checkAdminPin);
+  if (inputAdminPin) {
+    inputAdminPin.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        checkAdminPin();
+      } else if (e.key === 'Escape') {
+        closeAdminPinModal();
+      }
+    });
+  }
+
+  // --- Inicialización General del Portal ---
   updateLabTypeForm();
-  updateKPIs();
-  renderTable();
-  renderHistoricalDashboard();
-  renderReagentsDashboard();
-  sincronizarSolicitudesBackend();
+  applyRoleVisibility(getEffectiveRole(), true);
 });

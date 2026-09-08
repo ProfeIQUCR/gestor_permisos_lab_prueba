@@ -2328,6 +2328,321 @@ body {
   gap: 0.75rem;
 }
 
+/* ==========================================================================
+   Control de Acceso por Rol (Modo Camaleón)
+   ========================================================================== */
+.role-nav.role-hidden {
+  display: none !important;
+}
+
+.admin-only.role-hidden {
+  display: none !important;
+}
+
+.admin-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 181, 226, 0.15);
+  border: 1px solid var(--ucr-cyan);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+}
+
+.badge-role-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ucr-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-role-switch {
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.btn-role-switch:hover {
+  opacity: 1;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.footer-admin-link:hover {
+  opacity: 1 !important;
+  color: var(--ucr-cyan) !important;
+  text-decoration: underline !important;
+}
+
+/* ========================================================================= */
+/* --- SUBSANACIÓN Y RECARGA DE SOLICITUDES DEVUELTAS (FASE 2) --- */
+/* ========================================================================= */
+.subsanacion-banner {
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-left: 4px solid #0284C7;
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.subsanacion-content {
+  flex: 1;
+  min-width: 260px;
+}
+
+.subsanacion-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0369A1;
+  margin-bottom: 0.2rem;
+}
+
+.subsanacion-desc {
+  display: block;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.btn-subsanacion-trigger {
+  background: #0284C7;
+  color: #FFFFFF;
+  border: none;
+  padding: 0.55rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-subsanacion-trigger:hover {
+  background: #0369A1;
+}
+
+.subsanacion-active-card {
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-left: 4px solid #10B981;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.subsanacion-active-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.subsanacion-active-badge {
+  background: #DCFCE7;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.subsanacion-motivo-box {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-left: 3px solid #F59E0B;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.86rem;
+  color: #92400E;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.docente-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.btn-text-chip {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-text-chip:hover {
+  background: #E2E8F0;
+  color: var(--ucr-blue-dark);
+  border-color: var(--ucr-blue-light);
+}
+
+/* --------------------------------------------------------------------------
+   17.4 HERRAMIENTAS OPERATIVAS DE JEFATURA (Filtros por Lab y Detección de Colisiones)
+   -------------------------------------------------------------------------- */
+.table-filters-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+@media (min-width: 992px) {
+  .table-filters-wrapper {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+}
+
+.lab-filter-pills {
+  display: inline-flex;
+  background: #F1F5F9;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  gap: 3px;
+}
+
+.btn-filter-pill {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.btn-filter-pill:hover {
+  background: #E2E8F0;
+  color: var(--ucr-blue-dark);
+}
+
+.btn-filter-pill.active {
+  background: var(--ucr-blue-dark);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-filter-pill .pill-count {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.btn-filter-pill.active .pill-count {
+  background: var(--ucr-cyan);
+  color: var(--ucr-blue-dark);
+}
+
+/* Badge de advertencia de solapamiento en tabla */
+.badge-warning-conflict {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+  cursor: help;
+  letter-spacing: 0.2px;
+}
+
+.badge-warning-conflict:hover {
+  background: #FEF3C7;
+  border-color: #F59E0B;
+}
+
+/* Tarjeta de alerta de conflicto en Modal de Jefatura */
+.conflict-alert-card {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-left: 5px solid #D97706;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  color: #78350F;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.conflict-alert-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #92400E;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.conflict-alert-desc {
+  font-size: 0.85rem;
+  color: #92400E;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.conflict-alert-list {
+  margin: 0.4rem 0 0.6rem 1.25rem;
+  padding: 0;
+  font-size: 0.84rem;
+  color: #1E293B;
+  line-height: 1.5;
+}
+
+.conflict-alert-list li {
+  margin-bottom: 0.3rem;
+}
+
+.conflict-alert-footer {
+  font-size: 0.78rem;
+  color: #B45309;
+  border-top: 1px dashed #FDE68A;
+  padding-top: 0.4rem;
+  margin-top: 0.4rem;
+}
+
 /* Print Media Rules */
 @media print {
   @page {

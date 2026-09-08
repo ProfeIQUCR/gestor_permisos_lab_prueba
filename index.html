@@ -28,34 +28,38 @@
         </div>
       </div>
       <div class="header-actions">
-        <button id="btn-load-demo" class="btn-secondary btn-sm"
+        <button id="btn-load-demo" class="btn-secondary btn-sm admin-only"
           title="Cargar datos de ejemplo reales para demostración rápida">
           Cargar Datos Demo
         </button>
+        <div id="admin-role-badge" class="admin-role-badge admin-only" style="display: none;">
+          <span class="badge-role-title">Jefatura</span>
+          <button type="button" id="btn-switch-to-student" class="btn-role-switch" title="Cambiar a vista de estudiante">Ver como Estudiante</button>
+        </div>
         <span class="badge-status online">Sistema Institucional Activo</span>
       </div>
     </div>
   </header>
 
   <!-- Role Switcher Navigation -->
-  <nav class="role-nav">
+  <nav class="role-nav" id="main-role-nav">
     <div class="nav-container">
       <div class="tabs-wrapper">
         <button class="nav-tab active" data-tab="estudiante">
           <span class="tab-title">1. Solicitud Estudiante</span>
         </button>
-        <button class="nav-tab" data-tab="docente">
+        <button class="nav-tab admin-only" data-tab="docente">
           <span class="tab-title">2. Visto Bueno Docente</span>
           <span class="tab-pill" id="badge-docente-count">1</span>
         </button>
-        <button class="nav-tab" data-tab="jefatura">
+        <button class="nav-tab admin-only" data-tab="jefatura">
           <span class="tab-title">3. Panel Jefatura / Laboratorios</span>
           <span class="tab-pill" id="badge-jefatura-count">1</span>
         </button>
-        <button class="nav-tab" data-tab="historico">
+        <button class="nav-tab admin-only" data-tab="historico">
           <span class="tab-title">4. Registros Históricos</span>
         </button>
-        <button class="nav-tab" data-tab="carta">
+        <button class="nav-tab admin-only" data-tab="carta">
           <span class="tab-title">5. Carta Oficial Emitida</span>
         </button>
       </div>
@@ -93,6 +97,37 @@
           <!-- Step 1: Tipo de Laboratorio y Datos Personales -->
           <div class="form-step active" id="step-1">
             <h3 class="step-header">Paso 1: Laboratorio de Destino y Datos del Solicitante</h3>
+
+            <!-- Banner Institucional de Subsanación de Solicitudes Devueltas -->
+            <div class="subsanacion-banner mb-3" id="subsanacion-banner">
+              <div class="subsanacion-content">
+                <span class="subsanacion-title">¿Desea corregir una solicitud devuelta anteriormente?</span>
+                <span class="subsanacion-desc">Recupere los datos del expediente para corregir únicamente las observaciones señaladas sin escribir todo de nuevo.</span>
+              </div>
+              <button type="button" id="btn-open-subsanacion" class="btn-subsanacion-trigger">
+                Cargar Solicitud Devuelta
+              </button>
+            </div>
+
+            <!-- Recuadro informativo de subsanación activa (inicialmente oculto) -->
+            <div id="subsanacion-active-box" class="subsanacion-active-card hidden mb-3">
+              <div class="subsanacion-active-header">
+                <span class="subsanacion-active-badge">Expediente en Subsanación</span>
+                <button type="button" id="btn-cancel-subsanacion" class="btn-text-xs" title="Descartar subsanación y limpiar formulario">Descartar subsanación</button>
+              </div>
+              <div class="subsanacion-active-body">
+                <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #1E293B;">
+                  Se han restaurado los datos del trámite devuelto <strong id="subsanacion-active-id">—</strong>.
+                </p>
+                <div class="subsanacion-motivo-box">
+                  <strong>Observaciones recibidas para corrección:</strong>
+                  <div id="subsanacion-active-motivo" style="margin-top: 0.25rem; font-style: italic; color: #0F172A;">—</div>
+                </div>
+                <small style="color: #64748B; display: block; margin-top: 0.5rem;">
+                  Aplique los ajustes necesarios en los campos siguientes y complete la firma electrónica en el Paso 4 para generar un nuevo trámite oficial.
+                </small>
+              </div>
+            </div>
 
             <div class="form-group">
               <label class="form-label">Laboratorio Destino <span class="required">*</span></label>
@@ -410,7 +445,7 @@
                     <span class="label">Trace su firma (con dedo, lápiz digital o mouse):</span>
                     <button type="button" id="btn-clear-sig" class="btn-text-xs">Borrar trazo</button>
                   </div>
-                  <canvas id="canvas-firma-estudiante" width="380" height="130" class="signature-canvas"></canvas>
+                  <canvas id="canvas-firma-estudiante" width="380" height="130" class="signature-canvas" style="touch-action: none;"></canvas>
                   <span class="canvas-hint">Área para trazado de firma manuscrita</span>
                 </div>
 
@@ -514,6 +549,13 @@
             <label class="form-label" for="docente-observaciones">Observaciones complementarias (Opcional o justificación en caso de rechazo):</label>
             <input type="text" id="docente-observaciones" class="form-control"
               placeholder="Ingrese observaciones complementarias o motivo de corrección en caso de rechazo...">
+            <div class="docente-quick-chips">
+              <span style="font-size: 0.75rem; color: #64748B; font-weight: 600;">Motivos frecuentes:</span>
+              <button type="button" class="btn-text-chip" data-obs="No soy la persona docente responsable de este trabajo o curso.">No soy el(la) docente responsable</button>
+              <button type="button" class="btn-text-chip" data-obs="Por favor ajustar o justificar el período de fechas solicitado para la actividad.">Ajustar fechas</button>
+              <button type="button" class="btn-text-chip" data-obs="Por favor justificar o detallar las cantidades y purezas de los reactivos solicitados.">Detallar reactivos</button>
+              <button type="button" class="btn-text-chip" data-obs="Por favor indicar la placa UCR oficial de los equipos requeridos.">Indicar placa equipos</button>
+            </div>
           </div>
           <div style="display: flex; gap: 0.75rem; align-items: flex-end; justify-content: flex-end;">
             <div style="max-width: 140px;">
@@ -620,19 +662,38 @@
       <!-- Interactive Solicitudes Table -->
       <div class="table-card">
         <div class="table-header">
-          <h3>Bandeja de Gestión de Permisos</h3>
-          <div class="table-filters">
-            <input type="text" id="filter-search" class="form-control form-control-sm"
-              placeholder="Buscar por estudiante, carné o trámite...">
-            <select id="filter-lab" class="form-control form-control-sm">
-              <option value="todos">Todos los Laboratorios</option>
-              <option value="general">Laboratorio General</option>
-              <option value="instrumental">Laboratorio Instrumental</option>
-              <option value="cotrafin">COTRAFIN</option>
-            </select>
-            <button id="btn-sync-solicitudes" class="btn-secondary btn-sm" style="white-space: nowrap; cursor: pointer;" title="Consultar últimas aprobaciones registradas en Google Sheets">
-              Actualizar Trámites
-            </button>
+          <div>
+            <h3 style="margin-bottom: 0.25rem;">Bandeja de Gestión de Permisos</h3>
+            <small class="text-muted">Revise, autorice o devuelva las solicitudes de acceso a laboratorios EIQ.</small>
+          </div>
+          <div class="table-filters-wrapper">
+            <div class="lab-filter-pills" id="lab-filter-pills" role="tablist" aria-label="Filtro de solicitudes por laboratorio">
+              <button type="button" class="btn-filter-pill active" data-lab="todos">
+                Todos <span class="pill-count" id="count-filter-todos">0</span>
+              </button>
+              <button type="button" class="btn-filter-pill" data-lab="general">
+                General <span class="pill-count" id="count-filter-general">0</span>
+              </button>
+              <button type="button" class="btn-filter-pill" data-lab="instrumental">
+                Instrumental <span class="pill-count" id="count-filter-instrumental">0</span>
+              </button>
+              <button type="button" class="btn-filter-pill" data-lab="cotrafin">
+                COTRAFIN <span class="pill-count" id="count-filter-cotrafin">0</span>
+              </button>
+            </div>
+            <div class="table-filters">
+              <input type="text" id="filter-search" class="form-control form-control-sm"
+                placeholder="Buscar por estudiante, carné o trámite...">
+              <select id="filter-lab" class="form-control form-control-sm visually-hidden" aria-label="Selector de laboratorio">
+                <option value="todos">Todos los Laboratorios</option>
+                <option value="general">Laboratorio General</option>
+                <option value="instrumental">Laboratorio Instrumental</option>
+                <option value="cotrafin">COTRAFIN</option>
+              </select>
+              <button id="btn-sync-solicitudes" class="btn-secondary btn-sm" style="white-space: nowrap; cursor: pointer;" title="Consultar últimas aprobaciones registradas en Google Sheets">
+                Actualizar Trámites
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1003,6 +1064,9 @@
         </div>
 
         <div class="modal-body" style="background: #E2E8F0; padding: 1.5rem;">
+          <!-- Alerta Preventiva de Conflicto de Fechas / Solapamiento de Equipos -->
+          <div id="jefatura-conflict-alert-container"></div>
+
           <!-- Live Letter Document Sheet for Lab Chief Review -->
           <div class="document-sheet latex-layout" id="jefatura-modal-letter-sheet" style="margin: 0 auto; box-shadow: var(--shadow-md);">
             <!-- Populated dynamically via app.js -->
@@ -1152,10 +1216,70 @@
   </main>
 
   <footer class="app-footer">
-    <div class="footer-container">
-      <p>Escuela de Ingeniería Química — Universidad de Costa Rica • Sistema Digital de Permisos de Laboratorio</p>
+    <div class="footer-container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+      <p style="margin: 0;">Escuela de Ingeniería Química — Universidad de Costa Rica • Sistema Digital de Permisos de Laboratorio</p>
+      <a href="#" id="link-admin-login" class="footer-admin-link" style="color: #64748B; font-size: 0.75rem; text-decoration: none; opacity: 0.7;">Acceso Funcionarios</a>
     </div>
   </footer>
+
+  <!-- Modal Institucional para PIN de Acceso de Jefatura (sin alert ni prompt nativos) -->
+  <div id="modal-admin-pin" class="modal-backdrop hidden" style="z-index: 10003;">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
+        <h3 style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Acceso Administrativo Jefatura</h3>
+        <button type="button" id="btn-close-modal-pin" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem; color: #334155;">
+        <p style="margin-top: 0; font-size: 0.9rem; line-height: 1.5;">
+          Ingrese la contraseña alfanumérica de Jefatura / Coordinación para habilitar el panel administrativo:
+        </p>
+        <div class="form-group" style="margin-bottom: 0;">
+          <input type="password" id="input-admin-pin" class="form-control" placeholder="Contraseña de Jefatura" autocomplete="current-password" style="width: 100%; letter-spacing: 1px; font-size: 1rem; padding: 0.65rem;" />
+          <small id="admin-pin-status" style="color: #004C87; font-size: 0.8rem; display: none; margin-top: 0.4rem;">Validando credenciales con el servidor institucional...</small>
+          <small id="admin-pin-error" style="color: #DC2626; font-size: 0.8rem; display: none; margin-top: 0.4rem;">Contraseña incorrecta. Por favor verifique.</small>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0.75rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
+        <button type="button" id="btn-cancel-modal-pin" class="btn-secondary">Cancelar</button>
+        <button type="button" id="btn-confirm-modal-pin" class="btn-primary">Ingresar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Institucional para Subsanación de Solicitud Devuelta -->
+  <div id="modal-subsanacion" class="modal-backdrop hidden" style="z-index: 10004;">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
+        <h3 style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Cargar Solicitud Devuelta para Subsanación</h3>
+        <button type="button" id="btn-close-modal-subsanacion" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem; color: #334155;">
+        <p style="margin-top: 0; font-size: 0.88rem; line-height: 1.5; color: #475569;">
+          Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:
+        </p>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="subsanacion-codigo" style="font-size: 0.85rem; font-weight: 600; color: var(--ucr-blue-dark);">Código de Solicitud Devuelta <span class="required">*</span></label>
+          <input type="text" id="subsanacion-codigo" class="form-control" placeholder="Ej. LG-PERM-2026-0033" autocomplete="off" style="width: 100%; font-size: 0.95rem; padding: 0.65rem;" />
+          <small class="form-text-hint" style="color: #64748B; font-size: 0.78rem;">Código del trámite tal como fue emitido en su acuse y correo de devolución.</small>
+        </div>
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+          <label class="form-label" for="subsanacion-carne" style="font-size: 0.85rem; font-weight: 600; color: var(--ucr-blue-dark);">Número de Carné Institucional <span class="required">*</span></label>
+          <input type="text" id="subsanacion-carne" class="form-control" placeholder="Ej. C12345" autocomplete="off" style="width: 100%; font-size: 0.95rem; padding: 0.65rem;" />
+          <small class="form-text-hint" style="color: #64748B; font-size: 0.78rem;">Por seguridad y privacidad, debe coincidir con el carné del estudiante registrado.</small>
+        </div>
+        <div id="subsanacion-status" style="color: #004C87; font-size: 0.82rem; display: none; margin-top: 0.75rem; padding: 0.5rem; background: #EFF6FF; border-left: 3px solid #00B5E2; border-radius: 4px;">
+          Consultando expediente en el servidor institucional...
+        </div>
+        <div id="subsanacion-error" style="color: #B91C1C; font-size: 0.82rem; display: none; margin-top: 0.75rem; padding: 0.5rem; background: #FEF2F2; border-left: 3px solid #EF4444; border-radius: 4px;">
+          <!-- Error message -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0.75rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
+        <button type="button" id="btn-cancel-modal-subsanacion" class="btn-secondary">Cancelar</button>
+        <button type="button" id="btn-confirm-subsanacion" class="btn-primary">Recuperar Datos</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Generador de PDF en cliente (Descarga directa sin diálogos de impresión) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
