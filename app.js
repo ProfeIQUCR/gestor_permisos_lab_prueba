@@ -395,6 +395,160 @@ document.addEventListener('DOMContentLoaded', () => {
   const officialDocumentSheet = document.getElementById('official-document');
   const jefaturaModalLetterSheet = document.getElementById('jefatura-modal-letter-sheet');
 
+  // =========================================================================
+  // --- UI DIALOG & MODAL HELPERS (Reemplazo moderno de alert/prompt) ---
+  // =========================================================================
+  function showGeneralAlert(title, message, isWarning = false) {
+    const modal = document.getElementById('modal-general-alert');
+    if (!modal) {
+      console.log(title + ": " + message);
+      return;
+    }
+    const header = document.getElementById('alert-modal-header');
+    const titleEl = document.getElementById('alert-modal-title');
+    const contentEl = document.getElementById('alert-modal-content');
+    const btnOk = document.getElementById('btn-alert-modal-ok');
+    const btnClose = document.getElementById('btn-close-modal-alert');
+
+    if (titleEl) titleEl.textContent = title || "Aviso Institucional";
+    if (contentEl) contentEl.textContent = message || "";
+    if (header) {
+      header.style.background = isWarning ? "#D97706" : "var(--ucr-blue-dark)";
+    }
+
+    modal.classList.remove('hidden');
+
+    const closeHandler = () => {
+      modal.classList.add('hidden');
+      if (btnOk) btnOk.removeEventListener('click', closeHandler);
+      if (btnClose) btnClose.removeEventListener('click', closeHandler);
+    };
+    if (btnOk) btnOk.addEventListener('click', closeHandler, { once: true });
+    if (btnClose) btnClose.addEventListener('click', closeHandler, { once: true });
+  }
+
+  function showSubmissionLoading(msg) {
+    const modal = document.getElementById('modal-submission-loading');
+    const textEl = document.getElementById('submission-loading-msg');
+    if (modal) {
+      if (textEl && msg) textEl.textContent = msg;
+      modal.classList.remove('hidden');
+    }
+  }
+
+  function hideSubmissionLoading() {
+    const modal = document.getElementById('modal-submission-loading');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function showSubmissionFeedback(opts) {
+    const modal = document.getElementById('modal-submission-feedback');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('feedback-title');
+    const iconWrapper = document.getElementById('feedback-icon-wrapper');
+    const iconEl = document.getElementById('feedback-icon');
+    const ticketBox = document.getElementById('feedback-ticket-box');
+    const ticketCode = document.getElementById('feedback-ticket-code');
+    const docenteNombre = document.getElementById('feedback-docente-nombre');
+    const docenteCorreo = document.getElementById('feedback-docente-correo');
+    const estudianteCorreo = document.getElementById('feedback-estudiante-correo');
+    const reassuranceText = document.getElementById('feedback-reassurance-text');
+    const btnCerrar = document.getElementById('btn-feedback-cerrar');
+    const btnNueva = document.getElementById('btn-feedback-nueva-solicitud');
+
+    if (opts.success) {
+      if (titleEl) titleEl.textContent = "¡Solicitud enviada con éxito!";
+      if (iconWrapper) {
+        iconWrapper.style.borderColor = "#10B981";
+        iconWrapper.style.background = "rgba(16, 185, 129, 0.2)";
+        iconWrapper.style.color = "#10B981";
+      }
+      if (iconEl) iconEl.textContent = "✓";
+      if (ticketBox) ticketBox.style.display = "flex";
+      if (ticketCode) ticketCode.textContent = opts.ticketId || "—";
+      if (reassuranceText) {
+        reassuranceText.innerHTML = "<strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).";
+      }
+    } else {
+      // Contingencia ante intermitencia o latencia extrema
+      if (titleEl) titleEl.textContent = "Verificación de Envío en Proceso";
+      if (iconWrapper) {
+        iconWrapper.style.borderColor = "#00B5E2";
+        iconWrapper.style.background = "rgba(0, 181, 226, 0.2)";
+        iconWrapper.style.color = "#00B5E2";
+      }
+      if (iconEl) iconEl.textContent = "ℹ";
+      if (ticketBox) ticketBox.style.display = "none";
+      if (reassuranceText) {
+        reassuranceText.innerHTML = "<strong>No se pudo confirmar de inmediato la recepción debido a una intermitencia de red.</strong> Por favor revise su bandeja de entrada en unos minutos para comprobar si recibió el acuse de recibo con su código de trámite.";
+      }
+    }
+
+    if (docenteNombre) docenteNombre.textContent = opts.docenteNombre || "—";
+    if (docenteCorreo) docenteCorreo.textContent = opts.docenteCorreo || "—";
+    if (estudianteCorreo) estudianteCorreo.textContent = opts.estudianteCorreo || "—";
+
+    modal.classList.remove('hidden');
+
+    const handleClose = () => {
+      modal.classList.add('hidden');
+      if (btnCerrar) btnCerrar.removeEventListener('click', handleClose);
+    };
+    if (btnCerrar) btnCerrar.addEventListener('click', handleClose, { once: true });
+
+    const handleNueva = () => {
+      modal.classList.add('hidden');
+      if (btnNueva) btnNueva.removeEventListener('click', handleNueva);
+      form.reset();
+      if (sigCtx) {
+        sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
+        studentSignatureDataUrl = null;
+      }
+      goToStep(1);
+    };
+    if (btnNueva) btnNueva.addEventListener('click', handleNueva, { once: true });
+  }
+
+  function showJefaturaDevolucionModal(solicitud, onConfirm) {
+    const modal = document.getElementById('modal-jefatura-devolucion');
+    if (!modal) return;
+
+    const studentNameEl = document.getElementById('devolucion-student-name');
+    const textarea = document.getElementById('textarea-jefatura-observaciones');
+    const btnConfirm = document.getElementById('btn-confirm-devolucion');
+    const btnCancel = document.getElementById('btn-cancel-devolucion');
+    const btnClose = document.getElementById('btn-close-modal-devolucion');
+
+    if (studentNameEl) studentNameEl.textContent = solicitud.nombreEstudiante || "—";
+    if (textarea) textarea.value = "";
+
+    modal.classList.remove('hidden');
+    if (textarea) textarea.focus();
+
+    const closeModal = () => {
+      modal.classList.add('hidden');
+    };
+
+    if (btnCancel) btnCancel.onclick = closeModal;
+    if (btnClose) btnClose.onclick = closeModal;
+
+    if (btnConfirm) {
+      btnConfirm.onclick = () => {
+        const motivo = textarea ? textarea.value.trim() : "";
+        if (!motivo) {
+          showGeneralAlert("Observaciones Requeridas", "Por favor indique las observaciones o correcciones requeridas antes de confirmar la devolución.", true);
+          if (textarea) textarea.focus();
+          return;
+        }
+        closeModal();
+        if (typeof onConfirm === 'function') {
+          onConfirm(motivo);
+        }
+      };
+    }
+  }
+
   // --- Initialize Signature Canvas ---
   if (canvasFirma) {
     sigCtx = canvasFirma.getContext('2d');
@@ -1257,28 +1411,38 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (invalidReagents.length > 0) {
-        alert(`⚠ Validación Obligatoria de Unidades en Reactivos:\n\nPara cada reactivo solicitado debe indicar una cantidad numérica acompañada de su unidad de medida (volumen o masa).\n\nReactivos con unidades no especificadas:\n${invalidReagents.join('\n')}\n\nEjemplos válidos:\n• Líquidos / Soluciones: 500 mL, 2 L, 100 µL\n• Sólidos / Sales / Patrones: 50 g, 1.5 kg, 250 mg\n• Gases / Envases: 1 cilindro, 1 frasco\n\nPor favor corrija las casillas marcadas en rojo antes de continuar.`);
+        showGeneralAlert(
+          "Validación de Unidades en Reactivos",
+          `Para cada reactivo solicitado debe indicar una cantidad numérica acompañada de su unidad de medida (volumen o masa).\n\nReactivos con unidades no especificadas:\n${invalidReagents.join('\n')}\n\nEjemplos válidos:\n• Líquidos / Soluciones: 500 mL, 2 L, 100 µL\n• Sólidos / Sales / Patrones: 50 g, 1.5 kg, 250 mg\n• Gases / Envases: 1 cilindro, 1 frasco, 5 ft³\n\nPor favor corrija las casillas marcadas antes de continuar.`,
+          true
+        );
         return false;
       }
     }
 
     if (!isValid) {
-      alert('Por favor complete todos los campos obligatorios antes de continuar.');
+      showGeneralAlert("Campos Obligatorios Incompletos", "Por favor complete todos los campos obligatorios del formulario antes de continuar.", true);
     }
     return isValid;
   }
 
-  // --- Form Submission (Student Step) ---
+  // --- Form Submission (Student Step) con Protección Anti-Spam y Modales Institucionales ---
+  let isSubmitting = false;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isSubmitting) return; // Bloqueo estricto anti-doble clic / spam
     if (!validateStep(4)) return;
 
+    isSubmitting = true;
     const btnSubmit = document.getElementById('btn-submit-solicitud');
     const textoOriginalBtn = btnSubmit ? btnSubmit.textContent : '';
     if (btnSubmit) {
       btnSubmit.disabled = true;
-      btnSubmit.textContent = 'Transmitiendo solicitud a la nube...';
+      btnSubmit.textContent = 'Enviando solicitud institucional...';
     }
+
+    showSubmissionLoading("Transmitiendo datos de forma segura a los servidores institucionales de la EIQ...");
 
     const labType = document.querySelector('input[name="tipoLaboratorio"]:checked').value;
     const labName = labType === 'cotrafin' ? 'No Aplica' : LAB_CONFIGS[labType].nombre;
@@ -1371,7 +1535,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let ticketFinal = newReqId;
-    let mensajeConfirmacion = '';
+    let envioExitoso = false;
+    let esContingencia = false;
 
     // Transmitir a Google Apps Script si está en modo Live
     if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
@@ -1387,7 +1552,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           result = JSON.parse(rawText);
         } catch (e) {
-          console.warn('Respuesta no-JSON de Google Apps Script:', rawText);
           const ticketMatch = rawText.match(/COT-PERM-\d{4}-\d{4}|LG-PERM-\d{4}-\d{4}|LI-PERM-\d{4}-\d{4}/);
           if (ticketMatch) {
             result = { success: true, ticketId: ticketMatch[0] };
@@ -1397,62 +1561,78 @@ document.addEventListener('DOMContentLoaded', () => {
           ticketFinal = result.ticketId;
           nuevaSolicitud.id = ticketFinal;
           activeTicketId = ticketFinal;
-          mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
+          envioExitoso = true;
         } else {
-          throw new Error(result && result.error ? result.error : 'No se recibió confirmación JSON directa del servidor.');
+          throw new Error('Respuesta inicial en espera de confirmación');
         }
       } catch (err) {
-        console.warn('Fallo o redirección en fetch POST, verificando si se registró en la hoja:', err);
-        
-        // Verificación activa inmediata: comprobar si el POST ya se ejecutó exitosamente en Google Sheets
-        let registradoEnBackend = false;
-        try {
-          const checkResp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar&_nc=${Date.now()}`, {
-            method: 'GET',
-            redirect: 'follow'
-          });
-          const checkRaw = await checkResp.text();
-          let checkData = null;
-          try { checkData = JSON.parse(checkRaw); } catch(e){}
-          if (checkData && checkData.success && Array.isArray(checkData.solicitudes)) {
-            const encontrada = checkData.solicitudes.find(s => 
-              s.carneEstudiante === nuevaSolicitud.carneEstudiante &&
-              (s.nombreEstudiante || "").trim().toLowerCase() === (nuevaSolicitud.nombreEstudiante || "").trim().toLowerCase()
-            );
-            if (encontrada && encontrada.id) {
-              ticketFinal = encontrada.id;
-              nuevaSolicitud.id = ticketFinal;
-              activeTicketId = ticketFinal;
-              registradoEnBackend = true;
-              mensajeConfirmacion = `¡Solicitud registrada con éxito en el sistema central!\n\nCódigo Oficial: ${ticketFinal}\n\nSe ha enviado una notificación automática con enlace de Visto Bueno en 1 Clic a su docente (${nuevaSolicitud.docenteResponsable}: ${nuevaSolicitud.correoDocente}).\n\nTambién se despachó un acuse de recibo a su correo institucional (${nuevaSolicitud.correoEstudiante}).`;
+        console.warn('Aviso de latencia en despacho POST. Iniciando verificación silenciosa en segundo plano:', err);
+        showSubmissionLoading("Confirmando registro del expediente y despacho de notificaciones en el sistema central...");
+
+        // Sondeo silencioso con reintentos para no alarmar al estudiante si Apps Script tarda unos segundos
+        for (let intento = 1; intento <= 3; intento++) {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          try {
+            const checkResp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar&_nc=${Date.now()}`, {
+              method: 'GET',
+              redirect: 'follow'
+            });
+            const checkRaw = await checkResp.text();
+            let checkData = null;
+            try { checkData = JSON.parse(checkRaw); } catch(e){}
+            if (checkData && checkData.success && Array.isArray(checkData.solicitudes)) {
+              // Buscar coincidencia en las solicitudes más recientes (al revés)
+              const encontrada = [...checkData.solicitudes].reverse().find(s => 
+                s.carneEstudiante === nuevaSolicitud.carneEstudiante &&
+                (s.nombreEstudiante || "").trim().toLowerCase() === (nuevaSolicitud.nombreEstudiante || "").trim().toLowerCase()
+              );
+              if (encontrada && encontrada.id) {
+                ticketFinal = encontrada.id;
+                nuevaSolicitud.id = ticketFinal;
+                activeTicketId = ticketFinal;
+                envioExitoso = true;
+                break;
+              }
             }
+          } catch (checkErr) {
+            console.warn(`Intento ${intento} de sondeo en curso:`, checkErr);
           }
-        } catch (checkErr) {
-          console.warn('No se pudo verificar el listado:', checkErr);
         }
 
-        if (!registradoEnBackend) {
-          mensajeConfirmacion = `¡Solicitud generada en modo local (#${ticketFinal})!\n(Aviso: No se pudo contactar el servidor remoto o hubo un error: ${err.message}).`;
+        if (!envioExitoso) {
+          // No alarmar al estudiante con términos técnicos ("modo local", "error remoto", "Failed to fetch")
+          esContingencia = true;
         }
       }
     } else {
-      mensajeConfirmacion = `¡Solicitud #${ticketFinal} generada con éxito (Modo Simulación)!\n\nSe ha creado el expediente para revisión y visto bueno.\n\n(Para activar el registro automático en Google Sheets y correos institucionales, configure la URL en portal/config.js).`;
+      // Modo simulación local para demostraciones
+      envioExitoso = true;
     }
+
+    hideSubmissionLoading();
 
     if (btnSubmit) {
       btnSubmit.disabled = false;
       btnSubmit.textContent = textoOriginalBtn;
     }
+    isSubmitting = false;
 
     solicitudes.unshift(nuevaSolicitud);
     guardarSolicitudesLS(); // Persistir en localStorage para sobrevivir recargas
-    // Registrar consumo continuo de reactivos en el inventario y bitácora institucional
     ReagentsTrackingManager.registrarSolicitud(nuevaSolicitud);
     renderReagentsDashboard();
     document.getElementById('sum-ticket-id').textContent = ticketFinal;
 
-    alert(mensajeConfirmacion);
-    switchTab('docente');
+    // Desplegar el modal institucional con el mensaje de tranquilidad aprobado
+    showSubmissionFeedback({
+      success: envioExitoso && !esContingencia,
+      ticketId: ticketFinal,
+      docenteNombre: nuevaSolicitud.docenteResponsable,
+      docenteCorreo: nuevaSolicitud.correoDocente,
+      estudianteCorreo: nuevaSolicitud.correoEstudiante,
+      isContingency: esContingencia
+    });
+    // Se elimina switchTab('docente') para que el estudiante permanezca en su vista con el comprobante visible
   });
 
   // --- Load Demo Data Button ---
@@ -1480,7 +1660,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     updateSummary();
-    alert('Datos de demostración de referencia cargados exitosamente.');
+    showGeneralAlert('Demostración Cargada', 'Datos de demostración de referencia cargados exitosamente.');
   });
 
   // --- Navigation Switcher ---
@@ -1980,7 +2160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const initials = inputDocenteInitials.value.trim().toUpperCase();
     if (!initials) {
-      alert('Por favor ingrese sus iniciales en el campo correspondiente como firma electrónica del visto bueno.');
+      showGeneralAlert('Firma Requerida', 'Por favor ingrese sus iniciales en el campo correspondiente como firma electrónica del visto bueno.', true);
       inputDocenteInitials.focus();
       return;
     }
@@ -1993,7 +2173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderDocenteView();
     updateKPIs();
-    alert(`Visto bueno oficial otorgado por [${initials}].\n\nLa solicitud ha sido remitida a la Jefatura de Laboratorios para la autorización final de espacio.`);
+    showGeneralAlert('Visto Bueno Otorgado', `Visto bueno oficial otorgado por [${initials}].\n\nLa solicitud ha sido remitida a la Jefatura de Laboratorios para la autorización final de espacio.`);
     switchTab('jefatura');
   });
 
@@ -2003,14 +2183,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const motivo = textareaDocenteObs.value.trim();
     if (!motivo) {
-      alert('Por favor indique el motivo del rechazo o corrección requerida en el cuadro de observaciones.');
+      showGeneralAlert('Observaciones Requeridas', 'Por favor indique el motivo de la devolución o corrección requerida en el cuadro de observaciones.', true);
       textareaDocenteObs.focus();
       return;
     }
 
     current.estado = "Rechazado / Corrección Requerida";
     current.docenteObservaciones = motivo;
-    alert(`Solicitud devuelta al estudiante con la siguiente observación:\n\n"${motivo}"`);
+    showGeneralAlert('Solicitud Devuelta', `Solicitud devuelta al estudiante con la siguiente observación:\n\n"${motivo}"`);
     switchTab('jefatura');
   });
 
@@ -2203,9 +2383,8 @@ document.addEventListener('DOMContentLoaded', () => {
         autorizarJefatura(s.id);
       };
       btnModalDevolver.classList.remove('hidden');
-      btnModalDevolver.onclick = async () => {
-        const motivo = prompt(`Indique las observaciones y motivo de devolución para ${s.nombreEstudiante}:`);
-        if (motivo && motivo.trim()) {
+      btnModalDevolver.onclick = () => {
+        showJefaturaDevolucionModal(s, async (motivo) => {
           s.estado = "Devuelto por Jefatura / Corrección";
           s.devueltoJefatura = true;
           s.devueltoDocente = true;
@@ -2244,8 +2423,8 @@ document.addEventListener('DOMContentLoaded', () => {
           guardarSolicitudesLS();
           renderTable();
           updateKPIs();
-          alert(`Solicitud #${s.id} DEVUELTA con observaciones.\n\nSe ha notificado a la persona estudiante (${s.correoEstudiante}) con copia al docente responsable (${s.correoDocente}).`);
-        }
+          showGeneralAlert("Solicitud Devuelta", `Solicitud #${s.id} DEVUELTA con observaciones.\n\nSe ha notificado a la persona estudiante (${s.correoEstudiante}) con copia al docente responsable (${s.correoDocente}).`);
+        });
       };
     } else {
       btnModalAutorizar.textContent = "Esperando Visto Bueno Docente";
@@ -2309,7 +2488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderTable();
     updateKPIs();
-    alert(`Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial y se han enviado las notificaciones automáticas por correo electrónico.`);
+    showGeneralAlert("Solicitud Autorizada", `Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial y se han enviado las notificaciones automáticas por correo electrónico.`);
     switchTab('carta');
   };
 
@@ -2403,7 +2582,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnEmailLetter) {
     btnEmailLetter.addEventListener('click', () => {
       const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
-      alert(`Se ha enviado la Carta Oficial en PDF firmada institucionalmente al correo:\n${current.correoEstudiante}\n\nCon copia a la persona docente encargada:\n${current.correoDocente}`);
+      showGeneralAlert('Copia Institucional Despachada', `Se ha preparado la copia en PDF de la Carta Oficial firmada institucionalmente para:\n${current.correoEstudiante}\n\nCon copia a la persona docente encargada:\n${current.correoDocente}`);
     });
   }
 
@@ -8526,7 +8705,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (confirm('¿Desea restablecer el catálogo y bitácora de reactivos al estado histórico original de los 303 permisos (2024-2026)?')) {
         ReagentsTrackingManager.reset();
         renderReagentsDashboard();
-        alert('Registro y bitácora de reactivos restablecidos con éxito.');
+        showGeneralAlert('Bitácora Restablecida', 'Registro y bitácora de reactivos restablecidos con éxito.');
       }
     });
   }

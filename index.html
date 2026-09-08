@@ -1023,6 +1023,141 @@
       </div>
     </div>
 
+    <!-- ========================================================================= -->
+    <!-- MODAL: CORTINA DE CARGA INSTITUCIONAL / ANTI-SPAM (ENVÍO EN PROCESO) -->
+    <!-- ========================================================================= -->
+    <div id="modal-submission-loading" class="modal-backdrop hidden" style="z-index: 10000;">
+      <div class="submission-loading-card">
+        <div class="submission-spinner-container">
+          <div class="submission-spinner"></div>
+          <div class="submission-pulse-circle"></div>
+        </div>
+        <h3 class="submission-loading-title">Procesando Solicitud Institucional</h3>
+        <p id="submission-loading-msg" class="submission-loading-text">
+          Transmitiendo datos de forma segura a los servidores institucionales de la EIQ...
+        </p>
+        <div class="submission-loading-progress-bar">
+          <div class="submission-loading-progress-fill"></div>
+        </div>
+        <small class="submission-loading-warning">
+          🔒 Por favor espere unos momentos. No cierre ni recargue esta ventana para evitar duplicar el trámite.
+        </small>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: CONFIRMACIÓN INSTITUCIONAL DE ENVÍO Y TRANQUILIDAD -->
+    <!-- ========================================================================= -->
+    <div id="modal-submission-feedback" class="modal-backdrop hidden" style="z-index: 9999;">
+      <div class="modal-card feedback-modal-card">
+        <div class="feedback-modal-header" id="feedback-header">
+          <div class="feedback-icon-wrapper" id="feedback-icon-wrapper">
+            <span id="feedback-icon">✓</span>
+          </div>
+          <div class="feedback-header-content">
+            <span class="feedback-subheading">Universidad de Costa Rica • Escuela de Ingeniería Química</span>
+            <h3 id="feedback-title" class="feedback-title">¡Solicitud enviada con éxito!</h3>
+          </div>
+        </div>
+
+        <div class="feedback-modal-body">
+          <!-- Ticket highlight box -->
+          <div class="feedback-ticket-box" id="feedback-ticket-box">
+            <span class="feedback-ticket-label">Código Oficial de Trámite:</span>
+            <span class="feedback-ticket-code" id="feedback-ticket-code">LG-PERM-2026-0043</span>
+          </div>
+
+          <!-- Notification details -->
+          <div class="feedback-info-grid" id="feedback-info-grid">
+            <div class="feedback-info-item">
+              <span class="feedback-info-bullet">📧</span>
+              <div>
+                <strong>Docente responsable:</strong> <span id="feedback-docente-nombre">—</span> (<span id="feedback-docente-correo">—</span>)
+                <div class="feedback-info-subtext">Se ha enviado notificación automática con enlace de Visto Bueno en 1 Clic.</div>
+              </div>
+            </div>
+            <div class="feedback-info-item">
+              <span class="feedback-info-bullet">📨</span>
+              <div>
+                <strong>Estudiante solicitante:</strong> <span id="feedback-estudiante-correo">—</span>
+                <div class="feedback-info-subtext">Se despachó acuse de recibo institucional a su cuenta de correo.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reassurance callout -->
+          <div class="feedback-reassurance-box" id="feedback-reassurance-box">
+            <div class="feedback-reassurance-title">
+              ℹ Información importante para el seguimiento:
+            </div>
+            <p class="feedback-reassurance-text" id="feedback-reassurance-text">
+              <strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).
+            </p>
+            <p class="feedback-reassurance-text">
+              No es necesario enviar una nueva solicitud de inmediato. Si al cabo de unos minutos no recibe el correo de confirmación, puede intentar enviar la solicitud de nuevo. Si el problema persiste, comuníquese directamente con la Jefatura de Laboratorios al correo: <a href="mailto:laboratorio.eiq@ucr.ac.cr" class="feedback-link">laboratorio.eiq@ucr.ac.cr</a>.
+            </p>
+          </div>
+        </div>
+
+        <div class="feedback-modal-footer">
+          <button type="button" id="btn-feedback-nueva-solicitud" class="btn-secondary">
+            Crear Nueva Solicitud
+          </button>
+          <button type="button" id="btn-feedback-cerrar" class="btn-success">
+            Entendido y Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: DEVOLUCIÓN DE SOLICITUD POR JEFATURA CON OBSERVACIONES -->
+    <!-- ========================================================================= -->
+    <div id="modal-jefatura-devolucion" class="modal-backdrop hidden" style="z-index: 10001;">
+      <div class="modal-card" style="max-width: 550px;">
+        <div class="modal-header" style="background: #991B1B; color: #FFFFFF;">
+          <div>
+            <h3 style="color: #FFFFFF; margin: 0; font-size: 1.15rem;">Devolver Solicitud para Corrección</h3>
+            <small style="color: #FCA5A5;">Jefatura / Coordinación de Laboratorios EIQ</small>
+          </div>
+          <button type="button" id="btn-close-modal-devolucion" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+          <p style="margin-top: 0; color: #334155; font-size: 0.95rem;">
+            Indique las observaciones y motivos específicos de la devolución para la persona estudiante (<strong id="devolucion-student-name">—</strong>):
+          </p>
+          <div class="form-group" style="margin-bottom: 0;">
+            <textarea id="textarea-jefatura-observaciones" class="form-control" rows="4" placeholder="Ej. Ajustar el cronograma de fechas a la segunda semana y justificar el volumen solicitado del solvente..." required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; font-size: 0.9rem; padding: 0.75rem;"></textarea>
+            <small class="form-text-hint" style="display: block; margin-top: 0.5rem; color: #64748B;">
+              Estas observaciones se enviarán íntegramente por correo institucional a la persona estudiante con copia al docente responsable.
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
+          <button type="button" id="btn-cancel-devolucion" class="btn-secondary">Cancelar</button>
+          <button type="button" id="btn-confirm-devolucion" class="btn-danger">Confirmar Devolución y Notificar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: MENSAJE / ALERTA INSTITUCIONAL (REEMPLAZO DE ALERT NATIVO) -->
+    <!-- ========================================================================= -->
+    <div id="modal-general-alert" class="modal-backdrop hidden" style="z-index: 10002;">
+      <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header" id="alert-modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
+          <h3 id="alert-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Aviso Institucional</h3>
+          <button type="button" id="btn-close-modal-alert" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; color: #334155; font-size: 0.95rem; line-height: 1.6;">
+          <div id="alert-modal-content" style="white-space: pre-line;"></div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 0.75rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
+          <button type="button" id="btn-alert-modal-ok" class="btn-primary">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <footer class="app-footer">

@@ -2075,6 +2075,275 @@ body {
   background: var(--bg-card-alt);
 }
 
+/* ==========================================================================
+   Modales Institucionales de Carga, Confirmación y Tranquilidad
+   ========================================================================== */
+
+/* 1. Cortina de Carga Institucional (Anti-Spam) */
+.submission-loading-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 43, 73, 0.25);
+  max-width: 480px;
+  width: 90%;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  border: 1px solid #CBD5E1;
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.submission-spinner-container {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.submission-spinner {
+  width: 72px;
+  height: 72px;
+  border: 5px solid rgba(0, 181, 226, 0.15);
+  border-top-color: var(--ucr-cyan);
+  border-right-color: var(--ucr-blue-dark);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.submission-pulse-circle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle, rgba(0, 181, 226, 0.25) 0%, rgba(0, 43, 73, 0) 70%);
+  border-radius: 50%;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(0.9); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.submission-loading-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ucr-blue-dark);
+  margin-bottom: 0.5rem;
+}
+
+.submission-loading-text {
+  font-size: 0.92rem;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.submission-loading-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.submission-loading-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #002B49 0%, #00B5E2 50%, #002B49 100%);
+  background-size: 200% 100%;
+  border-radius: 999px;
+  animation: shimmerProgress 1.8s infinite linear;
+}
+
+@keyframes shimmerProgress {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.submission-loading-warning {
+  display: block;
+  font-size: 0.82rem;
+  color: #64748B;
+  background: #F8FAFC;
+  padding: 0.6rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+}
+
+/* 2. Modal de Confirmación y Tranquilidad */
+.feedback-modal-card {
+  max-width: 620px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 25px 50px -12px rgba(0, 43, 73, 0.25);
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feedback-modal-header {
+  background: var(--ucr-blue-dark);
+  color: #FFFFFF;
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  border-bottom: 3px solid var(--ucr-cyan);
+}
+
+.feedback-icon-wrapper {
+  width: 52px;
+  height: 52px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid #10B981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10B981;
+  font-size: 1.6rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.feedback-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.feedback-subheading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--ucr-cyan);
+  font-weight: 600;
+}
+
+.feedback-title {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.feedback-modal-body {
+  padding: 1.5rem 1.75rem;
+  background: #FFFFFF;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.feedback-ticket-box {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feedback-ticket-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #166534;
+}
+
+.feedback-ticket-code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--ucr-blue-dark);
+  background: #FFFFFF;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #BBF7D0;
+  letter-spacing: 0.5px;
+}
+
+.feedback-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.feedback-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.feedback-info-bullet {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.feedback-info-subtext {
+  font-size: 0.82rem;
+  color: #64748B;
+  margin-top: 0.15rem;
+}
+
+.feedback-reassurance-box {
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-left: 4px solid var(--ucr-cyan);
+  border-radius: 8px;
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.feedback-reassurance-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ucr-blue-dark);
+}
+
+.feedback-reassurance-text {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #334155;
+  margin: 0;
+}
+
+.feedback-link {
+  color: var(--ucr-blue-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.feedback-link:hover {
+  color: var(--ucr-cyan);
+}
+
+.feedback-modal-footer {
+  padding: 1.25rem 1.75rem;
+  background: #F8FAFC;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 /* Print Media Rules */
 @media print {
   @page {
