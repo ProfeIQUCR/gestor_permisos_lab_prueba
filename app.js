@@ -2105,7 +2105,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p><strong>Documento Oficial Emitido por el Sistema de Gestión de Laboratorios — EIQ/UCR</strong></p>
           <p>Código Único de Integridad: <span class="mono-code">UCR-EIQ-2026-${current.id}-AUTH-SHA256</span></p>
           <p>Verificación Oficial: <a href="${verifUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--ucr-blue-primary); font-weight:700; text-decoration:underline;">${current.id} (Clic o escanear QR)</a></p>
-          <p>Contactos: (506) 2511-6640 • (506) 2225-5622 • Correo: ${config.nombre.includes('Instrumental') ? 'instrumental.eiq@ucr.ac.cr' : 'laboratorio.eiq@ucr.ac.cr'} • Web: www.eiq.ucr.ac.cr</p>
+          <p>Contactos: Correo: ${config.nombre.includes('Instrumental') ? 'instrumental.eiq@ucr.ac.cr' : 'laboratorio.eiq@ucr.ac.cr'} • Web: www.eiq.ucr.ac.cr • San Pedro de Montes de Oca</p>
         </div>
       </div>
     `;
