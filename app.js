@@ -446,8 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal) return;
 
     const titleEl = document.getElementById('feedback-title');
-    const iconWrapper = document.getElementById('feedback-icon-wrapper');
-    const iconEl = document.getElementById('feedback-icon');
     const ticketBox = document.getElementById('feedback-ticket-box');
     const ticketCode = document.getElementById('feedback-ticket-code');
     const docenteNombre = document.getElementById('feedback-docente-nombre');
@@ -458,13 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnNueva = document.getElementById('btn-feedback-nueva-solicitud');
 
     if (opts.success) {
-      if (titleEl) titleEl.textContent = "¡Solicitud enviada con éxito!";
-      if (iconWrapper) {
-        iconWrapper.style.borderColor = "#10B981";
-        iconWrapper.style.background = "rgba(16, 185, 129, 0.2)";
-        iconWrapper.style.color = "#10B981";
-      }
-      if (iconEl) iconEl.textContent = "✓";
+      if (titleEl) titleEl.textContent = "Solicitud enviada con éxito";
       if (ticketBox) ticketBox.style.display = "flex";
       if (ticketCode) ticketCode.textContent = opts.ticketId || "—";
       if (reassuranceText) {
@@ -473,12 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Contingencia ante intermitencia o latencia extrema
       if (titleEl) titleEl.textContent = "Verificación de Envío en Proceso";
-      if (iconWrapper) {
-        iconWrapper.style.borderColor = "#00B5E2";
-        iconWrapper.style.background = "rgba(0, 181, 226, 0.2)";
-        iconWrapper.style.color = "#00B5E2";
-      }
-      if (iconEl) iconEl.textContent = "ℹ";
       if (ticketBox) ticketBox.style.display = "none";
       if (reassuranceText) {
         reassuranceText.innerHTML = "<strong>No se pudo confirmar de inmediato la recepción debido a una intermitencia de red.</strong> Por favor revise su bandeja de entrada en unos minutos para comprobar si recibió el acuse de recibo con su código de trámite.";

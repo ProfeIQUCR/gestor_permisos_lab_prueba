@@ -287,9 +287,8 @@
             </div>
 
             <!-- Nota general sobre sugerencias de autocompletado -->
-            <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 6px; padding: 0.65rem 1rem; margin-bottom: 0.85rem; display: flex; gap: 0.6rem; align-items: flex-start;">
-              <span style="font-size: 1.1rem; line-height: 1;">💡</span>
-              <small style="color: #92400E; line-height: 1.4;">Al escribir en los campos de equipos, reactivos o consumibles, el sistema sugerirá opciones de una base de datos con los recursos más solicitados históricamente. <strong>Si lo que necesita no aparece en las sugerencias, escríbalo libremente</strong> — la ausencia de sugerencia no significa que el recurso no exista o no esté disponible.</small>
+            <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 0.85rem;">
+              <small style="color: #92400E; line-height: 1.4; display: block;">Al escribir en los campos de equipos, reactivos o consumibles, el sistema sugerirá opciones de una base de datos con los recursos más solicitados históricamente. <strong>Si lo que necesita no aparece en las sugerencias, escríbalo libremente</strong> — la ausencia de sugerencia no significa que el recurso no exista o no esté disponible.</small>
             </div>
 
             <!-- Equipos Selector -->
@@ -325,9 +324,7 @@
 
               <!-- Aclaración Institucional: Concordancia de Unidades con el Estado Físico -->
               <div class="callout-box info-callout mt-2 mb-3" style="border-left: 4px solid var(--ucr-blue-primary); background: #F0F7FF; padding: 0.85rem 1.1rem; border-radius: 6px; border-top: 1px solid #DBEAFE; border-right: 1px solid #DBEAFE; border-bottom: 1px solid #DBEAFE;">
-                <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                  <span style="font-size: 1.3rem; line-height: 1;">⚗️</span>
-                  <div style="font-size: 0.85rem; color: var(--ucr-blue-dark); line-height: 1.45;">
+                <div style="font-size: 0.85rem; color: var(--ucr-blue-dark); line-height: 1.45;">
                     <strong style="color: var(--ucr-blue-primary);">Regla de Concordancia con el Estado Físico del Reactivo:</strong><br>
                     La unidad de medida solicitada debe corresponder estrictamente al <em>estado físico original</em> de la sustancia pura/concentrada almacenada en bodega:
                     <ul style="margin: 0.35rem 0 0 1.2rem; padding: 0; font-size: 0.82rem; color: #334155;">
@@ -337,7 +334,6 @@
                     </ul>
                     <small style="color: #64748B; display: block; margin-top: 0.3rem;">*<em>Nota importante:</em> Si preparará una disolución acuosa (ej. NaOH 0.1 M), declare la masa del reactivo sólido puro (g o kg) y en una fila separada declare el volumen de Agua Desionizada requerida (mL o L).</small>
                   </div>
-                </div>
               </div>
 
               <div id="reactivos-container" class="dynamic-rows">
@@ -1017,7 +1013,7 @@
           <button type="button" id="btn-modal-cancel" class="btn-secondary">Cerrar</button>
           <div style="display: flex; gap: 0.75rem;">
             <button type="button" id="btn-modal-devolver" class="btn-danger">Devolver con Observaciones</button>
-            <button type="button" id="btn-modal-autorizar" class="btn-success">✓ Autorizar y Emitir Carta Oficial</button>
+            <button type="button" id="btn-modal-autorizar" class="btn-success">Autorizar y Emitir Carta Oficial</button>
           </div>
         </div>
       </div>
@@ -1040,7 +1036,7 @@
           <div class="submission-loading-progress-fill"></div>
         </div>
         <small class="submission-loading-warning">
-          🔒 Por favor espere unos momentos. No cierre ni recargue esta ventana para evitar duplicar el trámite.
+          Por favor espere unos momentos. No cierre ni recargue esta ventana para evitar duplicar el trámite.
         </small>
       </div>
     </div>
@@ -1051,12 +1047,9 @@
     <div id="modal-submission-feedback" class="modal-backdrop hidden" style="z-index: 9999;">
       <div class="modal-card feedback-modal-card">
         <div class="feedback-modal-header" id="feedback-header">
-          <div class="feedback-icon-wrapper" id="feedback-icon-wrapper">
-            <span id="feedback-icon">✓</span>
-          </div>
           <div class="feedback-header-content">
             <span class="feedback-subheading">Universidad de Costa Rica • Escuela de Ingeniería Química</span>
-            <h3 id="feedback-title" class="feedback-title">¡Solicitud enviada con éxito!</h3>
+            <h3 id="feedback-title" class="feedback-title">Solicitud enviada con éxito</h3>
           </div>
         </div>
 
@@ -1070,14 +1063,12 @@
           <!-- Notification details -->
           <div class="feedback-info-grid" id="feedback-info-grid">
             <div class="feedback-info-item">
-              <span class="feedback-info-bullet">📧</span>
               <div>
                 <strong>Docente responsable:</strong> <span id="feedback-docente-nombre">—</span> (<span id="feedback-docente-correo">—</span>)
                 <div class="feedback-info-subtext">Se ha enviado notificación automática con enlace de Visto Bueno en 1 Clic.</div>
               </div>
             </div>
             <div class="feedback-info-item">
-              <span class="feedback-info-bullet">📨</span>
               <div>
                 <strong>Estudiante solicitante:</strong> <span id="feedback-estudiante-correo">—</span>
                 <div class="feedback-info-subtext">Se despachó acuse de recibo institucional a su cuenta de correo.</div>
@@ -1088,7 +1079,7 @@
           <!-- Reassurance callout -->
           <div class="feedback-reassurance-box" id="feedback-reassurance-box">
             <div class="feedback-reassurance-title">
-              ℹ Información importante para el seguimiento:
+              Información importante para el seguimiento:
             </div>
             <p class="feedback-reassurance-text" id="feedback-reassurance-text">
               <strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).
