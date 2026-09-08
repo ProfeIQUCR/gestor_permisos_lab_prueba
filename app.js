@@ -9452,9 +9452,23 @@ document.addEventListener('DOMContentLoaded', () => {
       roleNav.classList.toggle('role-hidden', !isJefatura);
     }
 
-    // Distintivo de Jefatura en el header
+    // Distintivo de Jefatura en el header con nombre del funcionario
     if (adminRoleBadge) {
       adminRoleBadge.style.display = isJefatura ? 'inline-flex' : 'none';
+      const titleSpan = adminRoleBadge.querySelector('.badge-role-title');
+      if (titleSpan) {
+        const funcNombre = localStorage.getItem('eiq_funcionario_nombre');
+        const funcCargo = localStorage.getItem('eiq_funcionario_cargo');
+        if (funcNombre) {
+          const partes = funcNombre.replace(/^(Ing\.|Lic\.|Dra\.|Dr\.)\s*/i, '').trim().split(/\s+/);
+          const nombreCorto = partes[0] + ' ' + (partes[1] || '');
+          titleSpan.textContent = nombreCorto;
+          titleSpan.title = `${funcNombre} (${funcCargo || 'Jefatura'})`;
+        } else {
+          titleSpan.textContent = 'Jefatura';
+          titleSpan.title = 'Sesión Administrativa de Jefatura';
+        }
+      }
     }
 
     // Enlace en el footer
@@ -9463,6 +9477,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (isJefatura) {
+      // Preselección inteligente de pastilla de laboratorio según el perfil del funcionario
+      const labPrincipal = localStorage.getItem('eiq_funcionario_lab');
+      if (labPrincipal === 'instrumental' && (!activeLabFilter || activeLabFilter === 'todos')) {
+        activeLabFilter = 'instrumental';
+        const pills = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
+        pills.forEach(p => p.classList.toggle('active', p.getAttribute('data-lab') === 'instrumental'));
+        if (filterLab) filterLab.value = 'instrumental';
+      }
+
       // Sincronizar datos y actualizar paneles administrativos
       sincronizarSolicitudesBackend();
       updateKPIs();
@@ -9520,9 +9543,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data && data.success) {
           localStorage.setItem(AUTH_TOKEN_KEY, data.token);
           localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          if (data.funcionario) localStorage.setItem('eiq_funcionario_nombre', data.funcionario);
+          if (data.cargo) localStorage.setItem('eiq_funcionario_cargo', data.cargo);
+          if (data.iniciales) localStorage.setItem('eiq_funcionario_iniciales', data.iniciales);
+          if (data.labPrincipal) localStorage.setItem('eiq_funcionario_lab', data.labPrincipal);
+          if (data.rolId) localStorage.setItem('eiq_funcionario_rol_id', data.rolId);
+
           closeAdminPinModal();
           applyRoleVisibility('jefatura');
-          showGeneralAlert("Acceso Concedido", "Sesión de Jefatura autenticada exitosamente.");
+          showGeneralAlert("Acceso Concedido", data.mensaje || `Bienvenido(a), ${data.funcionario || 'Jefatura'}.`);
         } else {
           if (adminPinError) {
             adminPinError.textContent = data.error || "Contraseña incorrecta. Por favor verifique.";
@@ -9533,13 +9562,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         console.warn("Aviso al validar clave con backend:", err);
-        // Fallback contingencia si hay error de red
-        if (clave === 'EIQ#Jefatura2026!') {
-          localStorage.setItem(AUTH_TOKEN_KEY, 'fallback_secure_token');
+        // Fallback contingencia si hay error de red o timeout
+        let perfilContingencia = null;
+        if (clave === 'EIQ#Adrian2026!' || clave === 'EIQ#Jefatura2026!') {
+          perfilContingencia = { nombre: "Ing. Adrián Serrano Mora, Ph.D.", cargo: "Jefe de Laboratorio", iniciales: "ASM", lab: "general", rolId: "adrian" };
+        } else if (clave === 'EIQ#MariaElena2026!') {
+          perfilContingencia = { nombre: "Lic. María Elena Sibaja García", cargo: "Subcoordinadora Laboratorio Instrumental", iniciales: "MESG", lab: "instrumental", rolId: "mariaelena" };
+        } else if (clave === 'EIQ#Suplente2026!') {
+          perfilContingencia = { nombre: "Persona Suplente Autorizada", cargo: "Jefatura de Laboratorio a.i.", iniciales: "SUPL", lab: "todos", rolId: "suplente" };
+        }
+
+        if (perfilContingencia) {
+          localStorage.setItem(AUTH_TOKEN_KEY, 'fallback_secure_token_' + perfilContingencia.rolId);
           localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          localStorage.setItem('eiq_funcionario_nombre', perfilContingencia.nombre);
+          localStorage.setItem('eiq_funcionario_cargo', perfilContingencia.cargo);
+          localStorage.setItem('eiq_funcionario_iniciales', perfilContingencia.iniciales);
+          localStorage.setItem('eiq_funcionario_lab', perfilContingencia.lab);
+          localStorage.setItem('eiq_funcionario_rol_id', perfilContingencia.rolId);
+
           closeAdminPinModal();
           applyRoleVisibility('jefatura');
-          showGeneralAlert("Acceso Concedido", "Sesión de Jefatura habilitada en modo contingencia.");
+          showGeneralAlert("Acceso Concedido", `Bienvenido(a), ${perfilContingencia.nombre} (Modo Contingencia).`);
         } else {
           if (adminPinError) {
             adminPinError.textContent = "Error al conectar con el servidor institucional. Verifique su conexión.";
@@ -9552,12 +9596,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       // Modo Simulación Local (sin backend live)
-      if (clave === 'EIQ#Jefatura2026!' || clave.toLowerCase() === 'jefatura') {
-        localStorage.setItem(AUTH_TOKEN_KEY, 'simulated_admin_token');
+      let perfilSim = null;
+      if (clave === 'EIQ#Adrian2026!' || clave === 'EIQ#Jefatura2026!' || clave.toLowerCase() === 'adrian' || clave.toLowerCase() === 'jefatura') {
+        perfilSim = { nombre: "Ing. Adrián Serrano Mora, Ph.D.", cargo: "Jefe de Laboratorio", iniciales: "ASM", lab: "general", rolId: "adrian" };
+      } else if (clave === 'EIQ#MariaElena2026!' || clave.toLowerCase() === 'mariaelena') {
+        perfilSim = { nombre: "Lic. María Elena Sibaja García", cargo: "Subcoordinadora Laboratorio Instrumental", iniciales: "MESG", lab: "instrumental", rolId: "mariaelena" };
+      } else if (clave === 'EIQ#Suplente2026!' || clave.toLowerCase() === 'suplente') {
+        perfilSim = { nombre: "Persona Suplente Autorizada", cargo: "Jefatura de Laboratorio a.i.", iniciales: "SUPL", lab: "todos", rolId: "suplente" };
+      }
+
+      if (perfilSim) {
+        localStorage.setItem(AUTH_TOKEN_KEY, 'simulated_admin_token_' + perfilSim.rolId);
         localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+        localStorage.setItem('eiq_funcionario_nombre', perfilSim.nombre);
+        localStorage.setItem('eiq_funcionario_cargo', perfilSim.cargo);
+        localStorage.setItem('eiq_funcionario_iniciales', perfilSim.iniciales);
+        localStorage.setItem('eiq_funcionario_lab', perfilSim.lab);
+        localStorage.setItem('eiq_funcionario_rol_id', perfilSim.rolId);
+
         closeAdminPinModal();
         applyRoleVisibility('jefatura');
-        showGeneralAlert("Acceso Concedido", "Modo Simulación: Jefatura activa.");
+        showGeneralAlert("Acceso Concedido", `Modo Simulación: ${perfilSim.nombre} activo.`);
       } else {
         if (adminPinError) {
           adminPinError.textContent = "Contraseña incorrecta.";
@@ -9569,10 +9628,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function limpiarSesionFuncionario() {
+    localStorage.removeItem(ROLE_STORAGE_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem('eiq_funcionario_nombre');
+    localStorage.removeItem('eiq_funcionario_cargo');
+    localStorage.removeItem('eiq_funcionario_iniciales');
+    localStorage.removeItem('eiq_funcionario_lab');
+    localStorage.removeItem('eiq_funcionario_rol_id');
+  }
+
   if (btnSwitchToStudent) {
     btnSwitchToStudent.addEventListener('click', () => {
-      localStorage.removeItem(ROLE_STORAGE_KEY);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
+      limpiarSesionFuncionario();
       applyRoleVisibility('estudiante');
       if (window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -9586,8 +9654,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const currentRole = localStorage.getItem(ROLE_STORAGE_KEY);
       if (currentRole === 'jefatura') {
-        localStorage.removeItem(ROLE_STORAGE_KEY);
-        localStorage.removeItem(AUTH_TOKEN_KEY);
+        limpiarSesionFuncionario();
         applyRoleVisibility('estudiante');
         if (window.history.replaceState) {
           window.history.replaceState({}, document.title, window.location.pathname);
