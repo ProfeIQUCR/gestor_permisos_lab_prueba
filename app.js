@@ -9537,7 +9537,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
       try {
-        const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=validar_clave_jefatura&clave=${encodeURIComponent(clave)}`);
+        const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'validar_clave_jefatura',
+            clave: clave
+          })
+        });
         const data = await resp.json();
 
         if (data && data.success) {
