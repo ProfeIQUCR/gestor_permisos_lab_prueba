@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const SOLICITUDES_DEMO = [
     {
+      _isDemo: true,
       id: "LG-PERM-2026-0042",
       tipoLaboratorio: "general",
       labNombre: "Laboratorio General EIQ",
@@ -147,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "20/08/2026 11:30"
     },
     {
+      _isDemo: true,
       id: "LI-PERM-2026-0041",
       tipoLaboratorio: "instrumental",
       labNombre: "Laboratorio Instrumental EIQ",
@@ -190,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "19/08/2026 10:00"
     },
     {
+      _isDemo: true,
       id: "COT-PERM-2026-0040",
       tipoLaboratorio: "cotrafin",
       labNombre: "No Aplica",
@@ -230,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "18/08/2026 11:15"
     },
     {
+      _isDemo: true,
       id: "LG-PERM-2026-0039",
       tipoLaboratorio: "general",
       labNombre: "Laboratorio General EIQ",
@@ -317,47 +321,45 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (result && result.success && Array.isArray(result.solicitudes)) {
-        if (result.solicitudes.length > 0) {
-          const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
-          const merged = [];
+        const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
+        const merged = [];
 
-          // Las solicitudes del backend van primero con normalización de estados
-          for (const item of result.solicitudes) {
-            if (!item.tipoLaboratorio) {
-              const labNom = String(item.labNombre || "").toLowerCase();
-              if (labNom.includes("instrumental")) item.tipoLaboratorio = "instrumental";
-              else if (labNom.includes("cotrafin")) item.tipoLaboratorio = "cotrafin";
-              else item.tipoLaboratorio = "general";
-            }
-
-            const est = String(item.estado || "").toUpperCase();
-            const esDevuelto = (est.includes("DEVUELTO") || est.includes("RECHAZADO"));
-            const esPendiente = (est.includes("PENDIENTE"));
-            const esAprobadoDocente = (est === "APROBADO_DOCENTE" || est.includes("APROBADO POR DOCENTE"));
-            const esAutorizadoJefatura = (est.includes("AUTORIZADO") || est === "EMITIDO");
-
-            item.devueltoDocente = esDevuelto;
-            item.jefeAprobado = esAutorizadoJefatura;
-            item.docenteAprobado = !esDevuelto && !esPendiente && (esAprobadoDocente || esAutorizadoJefatura);
-            if (!item.docenteIniciales && item.docenteResponsable) {
-              item.docenteIniciales = item.docenteResponsable.trim().split(/\s+/).map(p => p[0]).join('').toUpperCase().slice(0, 4);
-            }
-
-            merged.push(item);
+        // Las solicitudes del backend van primero con normalización de estados
+        for (const item of result.solicitudes) {
+          if (!item.tipoLaboratorio) {
+            const labNom = String(item.labNombre || "").toLowerCase();
+            if (labNom.includes("instrumental")) item.tipoLaboratorio = "instrumental";
+            else if (labNom.includes("cotrafin")) item.tipoLaboratorio = "cotrafin";
+            else item.tipoLaboratorio = "general";
           }
 
-          // Mantener registros locales previos que no colisionen con los demos
-          for (const s of solicitudes) {
-            if (!mapBackend.has(s.id) && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040") && !s.id.startsWith("LG-PERM-2026-0039")) {
-              merged.push(s);
-            }
+          const est = String(item.estado || "").toUpperCase();
+          const esDevuelto = (est.includes("DEVUELTO") || est.includes("RECHAZADO"));
+          const esPendiente = (est.includes("PENDIENTE"));
+          const esAprobadoDocente = (est === "APROBADO_DOCENTE" || est.includes("APROBADO POR DOCENTE"));
+          const esAutorizadoJefatura = (est.includes("AUTORIZADO") || est === "EMITIDO");
+
+          item.devueltoDocente = esDevuelto;
+          item.jefeAprobado = esAutorizadoJefatura;
+          item.docenteAprobado = !esDevuelto && !esPendiente && (esAprobadoDocente || esAutorizadoJefatura);
+          if (!item.docenteIniciales && item.docenteResponsable) {
+            item.docenteIniciales = calcularIniciales(item.docenteResponsable) || 'DOC';
           }
 
-          solicitudes = merged;
-          guardarSolicitudesLS();
-          renderTable();
-          updateKPIs();
+          merged.push(item);
         }
+
+        // Mantener registros locales legítimos creados en sesión que aún no figuren en backend y no sean demos
+        for (const s of solicitudes) {
+          if (!mapBackend.has(s.id) && !s._isDemo && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040") && !s.id.startsWith("LG-PERM-2026-0039")) {
+            merged.push(s);
+          }
+        }
+
+        solicitudes = merged;
+        guardarSolicitudesLS();
+        renderTable();
+        updateKPIs();
       }
     } catch (err) {
       console.warn("Sincronización con backend diferida:", err);
@@ -773,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     { name: "Dayatri Bolaños Picado", email: "dayatri.bolanos@ucr.ac.cr" },
     { name: "Esteban Durán Herrera", email: "esteban.duranherrera@ucr.ac.cr" },
     { name: "Esteban Richmond Salazar", email: "esteban.richmond@ucr.ac.cr" },
+    { name: "Gerardo Chacón Valle", email: "gerardo.chacon@ucr.ac.cr" },
     { name: "Jimena Incer Valverde", email: "jimena.incer@ucr.ac.cr" },
     { name: "Juliana Da Luz Castro", email: "juliana.daluz@ucr.ac.cr" },
     { name: "Karolina González Villalobos", email: "karolina.gonzalez_v@ucr.ac.cr" },
@@ -934,53 +937,53 @@ document.addEventListener('DOMContentLoaded', () => {
     if (labType === 'general') {
       row.innerHTML = `
         <div class="row-cell-main">
-          <input type="text" class="form-control eq-nombre" placeholder="Escriba el equipo requerido" value="${defaultVal.nombre || ''}">
+          <input type="text" class="form-control eq-nombre" placeholder="Escriba el equipo requerido" value="${defaultVal.nombre || ''}" aria-label="Nombre del equipo solicitado">
         </div>
         <div class="row-cell-qty">
-          <input type="text" class="form-control eq-placa" placeholder="Placa UCR" value="${defaultVal.placa || ''}">
+          <input type="text" class="form-control eq-placa" placeholder="Placa UCR" value="${defaultVal.placa || ''}" aria-label="Número de placa UCR del equipo">
         </div>
         <div class="row-cell-source">
-          <select class="form-control eq-disponible">
+          <select class="form-control eq-disponible" aria-label="Disponibilidad del equipo en el laboratorio">
             <option value="Disponible en el laboratorio" ${defaultVal.disponible === 'Disponible en el laboratorio' ? 'selected' : ''}>Disponible en el laboratorio</option>
             <option value="No disponible en el laboratorio" ${defaultVal.disponible === 'No disponible en el laboratorio' ? 'selected' : ''}>No disponible en el laboratorio</option>
           </select>
         </div>
         <div class="row-cell-cap">
-          <label class="checkbox-item-sm"><input type="checkbox" class="eq-capacitacion" ${defaultVal.capacitacion ? 'checked' : ''}> Req. Capacitación</label>
+          <label class="checkbox-item-sm"><input type="checkbox" class="eq-capacitacion" ${defaultVal.capacitacion ? 'checked' : ''} aria-label="Requiere capacitación para operar el equipo"> Req. Capacitación</label>
         </div>
-        <button type="button" class="btn-row-del" title="Eliminar fila">✕</button>
+        <button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de equipo">✕</button>
       `;
       attachTypeahead(row.querySelector('.eq-nombre'), CATALOG_EQUIPOS_GENERAL);
     } else if (labType === 'instrumental') {
       row.innerHTML = `
         <div class="row-cell-main">
-          <input type="text" class="form-control eq-nombre" placeholder="Escriba el equipo instrumental" value="${defaultVal.nombre || ''}">
+          <input type="text" class="form-control eq-nombre" placeholder="Escriba el equipo instrumental" value="${defaultVal.nombre || ''}" aria-label="Nombre del equipo instrumental solicitado">
         </div>
         <div class="row-cell-qty">
-          <input type="text" class="form-control eq-placa" placeholder="Cant. análisis aprox. *" value="${defaultVal.placa || ''}" required>
+          <input type="text" class="form-control eq-placa" placeholder="Cant. análisis aprox. *" value="${defaultVal.placa || ''}" required aria-label="Cantidad aproximada de análisis">
         </div>
         <div class="row-cell-cap">
-          <label class="checkbox-item-sm"><input type="checkbox" class="eq-capacitacion" ${defaultVal.capacitacion ? 'checked' : ''}> Req. Capacitación</label>
+          <label class="checkbox-item-sm"><input type="checkbox" class="eq-capacitacion" ${defaultVal.capacitacion ? 'checked' : ''} aria-label="Requiere capacitación para operar el equipo"> Req. Capacitación</label>
         </div>
         <div class="row-cell-cap">
-          <label class="checkbox-item-sm font-semibold" style="color: var(--ucr-blue-primary);"><input type="checkbox" class="eq-solicita-analisis" ${defaultVal.solicitaAnalisis ? 'checked' : ''}> Solicita análisis</label>
+          <label class="checkbox-item-sm font-semibold" style="color: var(--ucr-blue-primary);"><input type="checkbox" class="eq-solicita-analisis" ${defaultVal.solicitaAnalisis ? 'checked' : ''} aria-label="Solicita realización de análisis"> Solicita análisis</label>
         </div>
-        <button type="button" class="btn-row-del" title="Eliminar fila">✕</button>
+        <button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de equipo">✕</button>
       `;
       attachTypeahead(row.querySelector('.eq-nombre'), CATALOG_EQUIPOS_INSTRUMENTAL);
     } else { // COTRAFIN
       row.innerHTML = `
         <div class="row-cell-main">
-          <input type="text" class="form-control eq-nombre" placeholder="Nombre del equipo" value="${defaultVal.nombre || ''}">
+          <input type="text" class="form-control eq-nombre" placeholder="Nombre del equipo" value="${defaultVal.nombre || ''}" aria-label="Nombre del equipo solicitado">
         </div>
         <div class="row-cell-source" style="flex: 2;">
-          <select class="form-control eq-origen">
+          <select class="form-control eq-origen" aria-label="Origen o provisión del equipo">
             <option value="Solicitado a la EIQ" ${defaultVal.origen === 'Solicitado a la EIQ' ? 'selected' : ''}>Solicitado a la EIQ</option>
             <option value="Provisto por proyecto de investigación" ${defaultVal.origen === 'Provisto por proyecto de investigación' ? 'selected' : ''}>Provisto por proyecto de investigación</option>
             <option value="Solicitado a otra unidad o centro de investigación" ${defaultVal.origen === 'Solicitado a otra unidad o centro de investigación' ? 'selected' : ''}>Solicitado a otra unidad o centro de investigación</option>
           </select>
         </div>
-        <button type="button" class="btn-row-del" title="Eliminar fila">✕</button>
+        <button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de equipo">✕</button>
       `;
       attachTypeahead(row.querySelector('.eq-nombre'), CATALOG_EQUIPOS_GENERAL);
     }
@@ -1130,10 +1133,10 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = 'dynamic-row reactivo-row';
 
     if (labType === 'cotrafin') {
-      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '"></div><div class="row-cell-source" style="flex: 2;"><select class="form-control rec-origen"><option value="Solicitado al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicitado al laboratorio de la EIQ' ? ' selected' : '') + '>Solicitado al laboratorio de la EIQ</option><option value="Provisto por alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Provisto por algún proyecto de investigación' ? ' selected' : '') + '>Provisto por alg\u00fan proyecto de investigaci\u00f3n</option><option value="Solicitado a otra unidad o centro de investigaci\u00f3n"' + (defaultVal.origen === 'Solicitado a otra unidad o centro de investigación' ? ' selected' : '') + '>Solicitado a otra unidad o centro de investigaci\u00f3n</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila">\u2715</button>';
+      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre y pureza del reactivo"></div><div class="row-cell-source" style="flex: 2;"><select class="form-control rec-origen" aria-label="Origen o suministro del reactivo"><option value="Solicitado al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicitado al laboratorio de la EIQ' ? ' selected' : '') + '>Solicitado al laboratorio de la EIQ</option><option value="Provisto por alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Provisto por algún proyecto de investigación' ? ' selected' : '') + '>Provisto por alg\u00fan proyecto de investigaci\u00f3n</option><option value="Solicitado a otra unidad o centro de investigaci\u00f3n"' + (defaultVal.origen === 'Solicitado a otra unidad o centro de investigación' ? ' selected' : '') + '>Solicitado a otra unidad o centro de investigaci\u00f3n</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de reactivo">\u2715</button>';
       attachTypeahead(row.querySelector('.rec-nombre'), CATALOG_REACTIVOS);
     } else {
-      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '"></div><div class="row-cell-qty" style="position: relative;"><input type="text" class="form-control rec-cant" placeholder="Cantidad y unidad (ej: 500 mL, 50 g, 5 ft\u00b3) *" value="' + (defaultVal.cantidad || '') + '" required><div class="unit-helper-container"><div class="unit-feedback-msg"></div><div class="unit-quick-chips"><span class="unit-chip" data-unit="mL" title="Mililitros (l\u00edquido)">mL</span><span class="unit-chip" data-unit="L" title="Litros (l\u00edquido / gas)">L</span><span class="unit-chip" data-unit="g" title="Gramos (s\u00f3lido)">g</span><span class="unit-chip" data-unit="kg" title="Kilogramos (s\u00f3lido)">kg</span><span class="unit-chip" data-unit="mg" title="Miligramos (s\u00f3lido)">mg</span><span class="unit-chip unit-chip-gas" data-unit="ft\u00b3" title="Pies c\u00fabicos (Gases en cilindro)">ft\u00b3</span></div></div></div><div class="row-cell-source"><select class="form-control rec-origen"><option value="Disponible en el laboratorio de la EIQ"' + (defaultVal.origen === 'Disponible en el laboratorio de la EIQ' ? ' selected' : '') + '>Disponible en el laboratorio de la EIQ</option><option value="Lo provee alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Lo provee algún proyecto de investigación' ? ' selected' : '') + '>Lo provee alg\u00fan proyecto de investigaci\u00f3n</option><option value="Lo provee centro de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Lo provee centro de investigación o unidad' ? ' selected' : '') + '>Lo provee centro de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila">\u2715</button>';
+      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre y pureza del reactivo"></div><div class="row-cell-qty" style="position: relative;"><input type="text" class="form-control rec-cant" placeholder="Cantidad y unidad (ej: 500 mL, 50 g, 5 ft\u00b3) *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad y unidad del reactivo"><div class="unit-helper-container"><div class="unit-feedback-msg"></div><div class="unit-quick-chips"><span class="unit-chip" data-unit="mL" title="Mililitros (l\u00edquido)">mL</span><span class="unit-chip" data-unit="L" title="Litros (l\u00edquido / gas)">L</span><span class="unit-chip" data-unit="g" title="Gramos (s\u00f3lido)">g</span><span class="unit-chip" data-unit="kg" title="Kilogramos (s\u00f3lido)">kg</span><span class="unit-chip" data-unit="mg" title="Miligramos (s\u00f3lido)">mg</span><span class="unit-chip unit-chip-gas" data-unit="ft\u00b3" title="Pies c\u00fabicos (Gases en cilindro)">ft\u00b3</span></div></div></div><div class="row-cell-source"><select class="form-control rec-origen" aria-label="Origen o suministro del reactivo"><option value="Disponible en el laboratorio de la EIQ"' + (defaultVal.origen === 'Disponible en el laboratorio de la EIQ' ? ' selected' : '') + '>Disponible en el laboratorio de la EIQ</option><option value="Lo provee alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Lo provee algún proyecto de investigación' ? ' selected' : '') + '>Lo provee alg\u00fan proyecto de investigaci\u00f3n</option><option value="Lo provee centro de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Lo provee centro de investigación o unidad' ? ' selected' : '') + '>Lo provee centro de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de reactivo">\u2715</button>';
       attachTypeahead(row.querySelector('.rec-nombre'), CATALOG_REACTIVOS);
     }
 
@@ -1147,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createConsumibleRow(defaultVal = {}) {
     const row = document.createElement('div');
     row.className = 'dynamic-row consumible-row';
-    row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control con-nombre" placeholder="Consumible (escriba libremente)" value="' + (defaultVal.nombre || '') + '"></div><div class="row-cell-qty"><input type="text" class="form-control con-cant" placeholder="Cantidad *" value="' + (defaultVal.cantidad || '') + '" required></div><div class="row-cell-source"><select class="form-control con-origen"><option value="Solicita al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicita al laboratorio de la EIQ' ? ' selected' : '') + '>Solicita al laboratorio de la EIQ</option><option value="Provee proyecto de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Provee proyecto de investigación o unidad' ? ' selected' : '') + '>Provee proyecto de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila">\u2715</button>';
+    row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control con-nombre" placeholder="Consumible (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre del consumible"></div><div class="row-cell-qty"><input type="text" class="form-control con-cant" placeholder="Cantidad *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad del consumible"></div><div class="row-cell-source"><select class="form-control con-origen" aria-label="Origen o suministro del consumible"><option value="Solicita al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicita al laboratorio de la EIQ' ? ' selected' : '') + '>Solicita al laboratorio de la EIQ</option><option value="Provee proyecto de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Provee proyecto de investigación o unidad' ? ' selected' : '') + '>Provee proyecto de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de consumible">\u2715</button>';
     attachTypeahead(row.querySelector('.con-nombre'), CATALOG_CONSUMIBLES);
     attachDeleteHandler(row);
     return row;
@@ -1302,12 +1305,12 @@ document.addEventListener('DOMContentLoaded', () => {
       row.className = 'dynamic-row integrante-row';
       row.innerHTML = `
         <div class="row-cell-main">
-          <input type="text" class="form-control int-nombre" placeholder="Nombre integrante #${count}">
+          <input type="text" class="form-control int-nombre" placeholder="Nombre integrante #${count}" aria-label="Nombre completo del integrante #${count}">
         </div>
         <div class="row-cell-qty">
-          <input type="text" class="form-control int-carne" placeholder="Carné">
+          <input type="text" class="form-control int-carne" placeholder="Carné" aria-label="Carné del integrante #${count}">
         </div>
-        <button type="button" class="btn-row-del" title="Eliminar">✕</button>
+        <button type="button" class="btn-row-del" title="Eliminar" aria-label="Eliminar integrante #${count}">✕</button>
       `;
       integrantesContainer.appendChild(row);
       attachDeleteHandler(row);
@@ -1678,6 +1681,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return String(dateVal);
   }
 
+  function formatearFechaEspanol(dateVal) {
+    let d = (dateVal instanceof Date) ? dateVal : new Date(dateVal || Date.now());
+    if (isNaN(d.getTime())) d = new Date();
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+
   function calcularIniciales(nombre) {
     if (!nombre) return "";
     // Limpiar tratamientos académicos y títulos habituales
@@ -1743,6 +1753,45 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Validación de período de fechas en el Paso 2
+    if (step === 2) {
+      const labTypeEl = document.querySelector('input[name="tipoLaboratorio"]:checked');
+      const labType = labTypeEl ? labTypeEl.value : 'general';
+      if (labType !== 'cotrafin') {
+        const inputFIni = document.getElementById('fechaInicio');
+        const inputFFin = document.getElementById('fechaFinal');
+        const fIniVal = inputFIni ? inputFIni.value.trim() : "";
+        const fFinVal = inputFFin ? inputFFin.value.trim() : "";
+        if (fIniVal && fFinVal) {
+          const dIni = new Date(fIniVal + "T00:00:00");
+          const dFin = new Date(fFinVal + "T00:00:00");
+          if (isNaN(dIni.getTime()) || isNaN(dFin.getTime())) {
+            showGeneralAlert("Fechas Inválidas", "Por favor ingrese fechas válidas para el período de uso del laboratorio.", true);
+            return false;
+          }
+          if (dFin < dIni) {
+            showGeneralAlert(
+              "Período de Fechas Inválido",
+              "La fecha final no puede ser anterior a la fecha de inicio del período solicitado.",
+              true
+            );
+            return false;
+          }
+          if (labType === 'instrumental') {
+            const diffDias = Math.round((dFin - dIni) / (1000 * 60 * 60 * 24));
+            if (diffDias > 31) {
+              showGeneralAlert(
+                "Límite de Tiempo Superado",
+                `El período solicitado para el Laboratorio Instrumental no puede exceder 31 días naturales (período actual: ${diffDias} días). Para proyectos de mayor duración, por favor tramite solicitudes mensuales sucesivas.`,
+                true
+              );
+              return false;
+            }
+          }
+        }
+      }
+    }
+
     // Validación estricta de unidades de medida (volumen o masa) en el Paso 3
     if (step === 3 && !chkNoReactivos.checked) {
       const reagentRows = currentStepEl.querySelectorAll('.reactivo-row');
@@ -1789,7 +1838,7 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (isSubmitting) return; // Bloqueo estricto anti-doble clic / spam
-    if (!validateStep(4)) return;
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3) || !validateStep(4)) return;
 
     isSubmitting = true;
     const btnSubmit = document.getElementById('btn-submit-solicitud');
@@ -1851,11 +1900,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const prefix = getLabPrefix(labType);
     const yearNow = new Date().getFullYear();
-    const newReqId = `${prefix}-PERM-${yearNow}-00${solicitudes.length + 40}`;
-    activeTicketId = newReqId;
+    const regexAnio = new RegExp(`-PERM-${yearNow}-(\\d{4})`);
+    let maxCorrelativoLocal = 0;
+    solicitudes.forEach(s => {
+      const match = (s.id || '').match(regexAnio);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxCorrelativoLocal) maxCorrelativoLocal = num;
+      }
+    });
+    const correlativoLocal = String(maxCorrelativoLocal + 1).padStart(4, '0');
+    const newReqId = `${prefix}-PERM-${yearNow}-${correlativoLocal}`;
+    const clientUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : ('idemp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11));
 
     const nuevaSolicitud = {
       id: newReqId,
+      idempotencyKey: clientUuid,
       subsanacionDe: subsanacionOriginalId || null,
       tipoLaboratorio: labType,
       labNombre: labName,
@@ -2053,6 +2115,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- Función de escape HTML para neutralizar inyecciones XSS / HTML malicioso ---
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // --- Unified Official Letter Document Sheet Generator ---
   function generateLetterHTML(current) {
     const config = LAB_CONFIGS[current.tipoLaboratorio] || LAB_CONFIGS.general;
@@ -2062,6 +2135,14 @@ document.addEventListener('DOMContentLoaded', () => {
       : `https://www.eiq.ucr.ac.cr/permisos/verificar?id=${encodeURIComponent(current.id)}`;
 
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifUrl)}&margin=1`;
+
+    // Sanitizar campos del estudiante y actividad contra XSS
+    const safeNombreEstudiante = escapeHtml(current.nombreEstudiante);
+    const safeCarneEstudiante = escapeHtml(current.carneEstudiante);
+    const safeTipoActividad = escapeHtml(current.tipoActividad);
+    const safeNombreCursoProyecto = escapeHtml(current.nombreCursoProyecto);
+    const safeDocenteResponsable = escapeHtml(current.docenteResponsable);
+    const safeDescripcionActividad = escapeHtml(current.descripcionActividad);
 
     // Header Lab Name
     let labHeaderTitle = config.nombre;
@@ -2078,15 +2159,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let mainParagraph = "";
     if (current.tipoLaboratorio === 'cotrafin') {
       mainParagraph = `
-        Por este medio yo, <strong>${current.nombreEstudiante}</strong>, carné <strong>${current.carneEstudiante}</strong>, solicito se me permita hacer uso del <strong>Laboratorio de la Escuela de Ingeniería Química</strong> para el desarrollo de la parte experimental de mi <strong>${current.tipoActividad}</strong>. Entre las actividades que necesitaré desarrollar en el laboratorio están:
+        Por este medio yo, <strong>${safeNombreEstudiante}</strong>, carné <strong>${safeCarneEstudiante}</strong>, solicito se me permita hacer uso del <strong>Laboratorio de la Escuela de Ingeniería Química</strong> para el desarrollo de la parte experimental de mi <strong>${safeTipoActividad}</strong>. Entre las actividades que necesitaré desarrollar en el laboratorio están:
       `;
     } else if (current.tipoLaboratorio === 'instrumental') {
       mainParagraph = `
-        Por este medio yo, <strong>${current.nombreEstudiante}</strong>, carné <strong>${current.carneEstudiante}</strong>, solicito el uso del <strong>Laboratorio de Instrumentación de la Escuela de Ingeniería Química</strong> a partir del día <strong>${formatDateStr(current.fechaInicio)}</strong> hasta el día <strong>${formatDateStr(current.fechaFinal)}</strong>, para realizar actividades como parte de: <strong>${current.tipoActividad} (${current.nombreCursoProyecto})</strong>.
+        Por este medio yo, <strong>${safeNombreEstudiante}</strong>, carné <strong>${safeCarneEstudiante}</strong>, solicito el uso del <strong>Laboratorio de Instrumentación de la Escuela de Ingeniería Química</strong> a partir del día <strong>${formatDateStr(current.fechaInicio)}</strong> hasta el día <strong>${formatDateStr(current.fechaFinal)}</strong>, para realizar actividades como parte de: <strong>${safeTipoActividad} (${safeNombreCursoProyecto})</strong>.
       `;
     } else { // General 2025
       mainParagraph = `
-        Por este medio yo, <strong>${current.nombreEstudiante}</strong>, carné <strong>${current.carneEstudiante}</strong>, después de coordinar con las personas encargadas del laboratorio sobre la disponibilidad del espacio de laboratorio, equipos y reactivos, solicito el uso del <strong>${config.nombre}</strong> a partir del día <strong>${formatDateStr(current.fechaInicio)}</strong> hasta el día <strong>${formatDateStr(current.fechaFinal)}</strong>, para realizar actividades relacionadas a <strong>${current.tipoActividad} (${current.nombreCursoProyecto})</strong>.
+        Por este medio yo, <strong>${safeNombreEstudiante}</strong>, carné <strong>${safeCarneEstudiante}</strong>, después de coordinar con las personas encargadas del laboratorio sobre la disponibilidad del espacio de laboratorio, equipos y reactivos, solicito el uso del <strong>${config.nombre}</strong> a partir del día <strong>${formatDateStr(current.fechaInicio)}</strong> hasta el día <strong>${formatDateStr(current.fechaFinal)}</strong>, para realizar actividades relacionadas a <strong>${safeTipoActividad} (${safeNombreCursoProyecto})</strong>.
       `;
     }
 
@@ -2159,9 +2240,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Visto bueno doc statement strictly per lab
     let docFeStatement = "";
     if (current.tipoLaboratorio === 'general') {
-      docFeStatement = `Esta actividad cuenta con el visto bueno de <strong>${current.docenteResponsable}</strong>, quien aprueba la realización de este trabajo y da fe, al firmar esta carta, de que se han revisado los métodos y la existencia de los reactivos y equipos para llevar a cabo lo solicitado. Además, el análisis incluye la seguridad y la gestión adecuada de los residuos.`;
+      docFeStatement = `Esta actividad cuenta con el visto bueno de <strong>${safeDocenteResponsable}</strong>, quien aprueba la realización de este trabajo y da fe, al firmar esta carta, de que se han revisado los métodos y la existencia de los reactivos y equipos para llevar a cabo lo solicitado. Además, el análisis incluye la seguridad y la gestión adecuada de los residuos.`;
     } else {
-      docFeStatement = `Esta actividad cuenta con el visto bueno de <strong>${current.docenteResponsable}</strong>, quien aprueba la realización de este trabajo y da fe, al firmar esta carta, de que se han revisado los métodos y la existencia de los reactivos y equipos para llevar a cabo lo solicitado.`;
+      docFeStatement = `Esta actividad cuenta con el visto bueno de <strong>${safeDocenteResponsable}</strong>, quien aprueba la realización de este trabajo y da fe, al firmar esta carta, de que se han revisado los métodos y la existencia de los reactivos y equipos para llevar a cabo lo solicitado.`;
     }
 
     // Equipos Table
@@ -2183,7 +2264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           </thead>
           <tbody>
-            ${current.equipos.map(e => `<tr><td><strong>${e.nombre}</strong></td><td>${e.origen || "Solicitado a la EIQ"}</td></tr>`).join('')}
+            ${current.equipos.map(e => `<tr><td><strong>${escapeHtml(e.nombre)}</strong></td><td>${escapeHtml(e.origen || "Solicitado a la EIQ")}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -2201,8 +2282,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <tbody>
             ${current.equipos.map(e => `
               <tr>
-                <td><strong>${e.nombre}</strong></td>
-                <td>${e.placa || "N/A"}</td>
+                <td><strong>${escapeHtml(e.nombre)}</strong></td>
+                <td>${escapeHtml(e.placa || "N/A")}</td>
                 <td>${e.capacitacion ? 'Sí requiere' : 'No requiere'}</td>
                 <td>${e.solicitaAnalisis ? 'Sí solicita' : 'No solicita'}</td>
               </tr>
@@ -2224,9 +2305,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <tbody>
             ${current.equipos.map(e => `
               <tr>
-                <td><strong>${e.nombre}</strong></td>
-                <td>${e.placa || "N/A"}</td>
-                <td>${e.disponible || "Disponible"}</td>
+                <td><strong>${escapeHtml(e.nombre)}</strong></td>
+                <td>${escapeHtml(e.placa || "N/A")}</td>
+                <td>${escapeHtml(e.disponible || "Disponible")}</td>
                 <td>${e.capacitacion ? 'Sí requiere' : 'No requiere'}</td>
               </tr>
             `).join('')}
@@ -2254,7 +2335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           </thead>
           <tbody>
-            ${current.reactivos.map(r => `<tr><td><strong>${r.nombre}</strong></td><td>${r.origen}</td></tr>`).join('')}
+            ${current.reactivos.map(r => `<tr><td><strong>${escapeHtml(r.nombre)}</strong></td><td>${escapeHtml(r.origen || "—")}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -2271,9 +2352,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <tbody>
             ${current.reactivos.map(r => `
               <tr>
-                <td><strong>${r.nombre}</strong></td>
-                <td>${r.cantidad || "N/A"}</td>
-                <td>${r.origen}</td>
+                <td><strong>${escapeHtml(r.nombre)}</strong></td>
+                <td>${escapeHtml(r.cantidad || "N/A")}</td>
+                <td>${escapeHtml(r.origen || "—")}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2295,7 +2376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           </thead>
           <tbody>
-            ${current.consumibles.map(c => `<tr><td><strong>${c.nombre}</strong></td><td>${c.cantidad || "N/A"}</td><td>${c.origen}</td></tr>`).join('')}
+            ${current.consumibles.map(c => `<tr><td><strong>${escapeHtml(c.nombre)}</strong></td><td>${escapeHtml(c.cantidad || "N/A")}</td><td>${escapeHtml(c.origen || "—")}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -2312,7 +2393,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <h4 class="doc-section-heading">Integrantes del Grupo de Trabajo:</h4>
           <table class="latex-table">
             <thead><tr><th>Nombre Integrante</th><th>Carné</th></tr></thead>
-            <tbody>${current.integrantes.map(i => `<tr><td>${i.nombre}</td><td>${i.carne}</td></tr>`).join('')}</tbody>
+            <tbody>${current.integrantes.map(i => `<tr><td>${escapeHtml(i.nombre)}</td><td>${escapeHtml(i.carne)}</td></tr>`).join('')}</tbody>
           </table>
         </div>
       `;
@@ -2379,7 +2460,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="lab-title-text">${labHeaderTitle}</div>
         </div>
         <div class="doc-date-box">
-          San José, ${new Date().toLocaleDateString('es-CR', {day: 'numeric', month: 'long', year: 'numeric'})}
+          San José, ${formatearFechaEspanol(new Date())}
         </div>
       </div>
 
@@ -2400,7 +2481,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="doc-actividad-desc-box">
           <strong>Descripción detallada de actividades:</strong><br>
-          <span>${current.descripcionActividad}</span>
+          <span>${safeDescripcionActividad}</span>
         </div>
 
         <!-- Instrumental Checklist (if applicable) -->
@@ -2446,7 +2527,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-drawn-preview">
             ${sig1Preview}
           </div>
-          <div class="sig-name-line">${current.nombreEstudiante}</div>
+          <div class="sig-name-line">${safeNombreEstudiante}</div>
           <div class="sig-role-line">Estudiante responsable</div>
           <div class="sig-date-line">Fecha: ${current.fechaCreacion}</div>
         </div>
@@ -2455,7 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-drawn-preview">
             <div class="sig-seal-approved ${isDocApproved ? '' : 'sig-seal-pending'}">${sig2SealText}</div>
           </div>
-          <div class="sig-name-line">${current.docenteResponsable}</div>
+          <div class="sig-name-line">${safeDocenteResponsable}</div>
           <div class="sig-role-line">${sig2Role}</div>
           <div class="sig-date-line">${sig2DateText}</div>
         </div>
@@ -2761,13 +2842,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       return `
         <tr>
-          <td><strong style="color: var(--ucr-blue-light); font-family: var(--font-mono);">${s.id}</strong></td>
+          <td><strong style="color: var(--ucr-blue-light); font-family: var(--font-mono);">${escapeHtml(s.id)}</strong></td>
           <td>
-            <strong>${s.nombreEstudiante}</strong><br>
-            <small style="color: var(--text-muted);">${s.carneEstudiante}</small>
+            <strong>${escapeHtml(s.nombreEstudiante)}</strong><br>
+            <small style="color: var(--text-muted);">${escapeHtml(s.carneEstudiante)}</small>
           </td>
-          <td>${s.labNombre || (s.tipoLaboratorio === 'instrumental' ? 'Laboratorio Instrumental' : (s.tipoLaboratorio === 'cotrafin' ? 'COTRAFIN' : 'Laboratorio General'))}</td>
-          <td>${s.docenteResponsable}</td>
+          <td>${escapeHtml(s.labNombre || (s.tipoLaboratorio === 'instrumental' ? 'Laboratorio Instrumental' : (s.tipoLaboratorio === 'cotrafin' ? 'COTRAFIN' : 'Laboratorio General')))}</td>
+          <td>${escapeHtml(s.docenteResponsable)}</td>
           <td>${periodoDisplay}</td>
           <td><span class="badge-pill ${statusClass}">${estadoLabel}</span></td>
           <td>${actionBtn}</td>
@@ -2805,9 +2886,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSyncSolicitudes.addEventListener('click', async () => {
       const origText = btnSyncSolicitudes.textContent;
       btnSyncSolicitudes.disabled = true;
-      btnSyncSolicitudes.textContent = "Sincronizando...";
+      btnSyncSolicitudes.textContent = "Sincronizando trámites...";
       await sincronizarSolicitudesBackend();
-      btnSyncSolicitudes.textContent = "¡Actualizado!";
+      btnSyncSolicitudes.textContent = "Trámites actualizados";
       setTimeout(() => {
         btnSyncSolicitudes.textContent = origText;
         btnSyncSolicitudes.disabled = false;
@@ -2938,15 +3019,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btnModalDevolver.classList.remove('hidden');
       btnModalDevolver.onclick = () => {
         showJefaturaDevolucionModal(s, async (motivo) => {
-          s.estado = "Devuelto por Jefatura / Corrección";
-          s.devueltoJefatura = true;
-          s.devueltoDocente = true;
-          s.docenteAprobado = false;
-          s.jefeObservaciones = motivo.trim();
+          showSubmissionLoading("Procesando devolución y notificando a las partes interesadas...");
           closeModalRevision();
 
           // Sincronizar devolución con el backend en modo Live
           if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+            let respData = null;
+            let respOk = false;
+            let errorMsg = "";
             try {
               const chkDelegacion = document.getElementById('chk-delegacion-firma');
               const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
@@ -2956,7 +3036,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 jNombre = document.getElementById('delegado-nombre').value.trim() || jNombre;
                 jCargo = document.getElementById('delegado-cargo').value.trim() || jCargo;
               }
-              await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+              const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 redirect: 'follow',
@@ -2969,10 +3049,32 @@ document.addEventListener('DOMContentLoaded', () => {
                   auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
                 })
               });
+              respOk = resp.ok;
+              try { respData = await resp.json(); } catch (e) {}
+              if (!respOk && !errorMsg) {
+                errorMsg = `El servidor devolvió un error HTTP ${resp.status}.`;
+              }
             } catch (err) {
               console.warn("Aviso al sincronizar devolución de jefatura:", err);
+              errorMsg = "No se pudo establecer comunicación con el servidor institucional.";
+            } finally {
+              hideSubmissionLoading();
             }
+
+            if (!respOk || !respData || !respData.success) {
+              showGeneralAlert("Error al Devolver", (respData && respData.error) || errorMsg || "El servidor rechazó la devolución. Verifique su sesión.");
+              return;
+            }
+          } else {
+            hideSubmissionLoading();
           }
+
+          // Solo se muta el estado local y se persiste si el backend confirmó la transacción con éxito
+          s.estado = "Devuelto por Jefatura / Corrección";
+          s.devueltoJefatura = true;
+          s.devueltoDocente = true;
+          s.docenteAprobado = false;
+          s.jefeObservaciones = motivo.trim();
 
           guardarSolicitudesLS();
           renderTable();
@@ -2994,57 +3096,81 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = solicitudes.find(item => item.id === id);
     if (!s) return;
 
-    const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
-    const chkDelegacion = document.getElementById('chk-delegacion-firma');
+    showSubmissionLoading("Emitiendo autorización oficial y despachando resoluciones por correo electrónico...");
+    try {
+      const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
+      const chkDelegacion = document.getElementById('chk-delegacion-firma');
 
-    if (chkDelegacion && chkDelegacion.checked) {
-      s.jefeNombre = document.getElementById('delegado-nombre').value.trim() || "Dra. Rebeca Salazar Vega";
-      s.jefeCargo = document.getElementById('delegado-cargo').value.trim() || "Jefa de Laboratorio a.i.";
-      s.jefeTituloSig = 'V.B. ' + s.jefeCargo;
-      s.jefeIniciales = document.getElementById('delegado-iniciales').value.trim().toUpperCase() || "RSV";
-      s.esDelegado = true;
-    } else {
-      s.jefeNombre = config.titularNombre;
-      s.jefeCargo = config.titularCargo;
-      s.jefeTituloSig = config.titularSig;
-      s.jefeIniciales = config.titularIniciales;
-      s.esDelegado = false;
-    }
+      let nuevoJefeNombre = config.titularNombre;
+      let nuevoJefeCargo = config.titularCargo;
+      let nuevoJefeTituloSig = config.titularSig;
+      let nuevoJefeIniciales = config.titularIniciales;
+      let nuevoEsDelegado = false;
 
-    s.jefeAprobado = true;
-    s.jefeFecha = new Date().toLocaleDateString('es-CR') + " " + new Date().toLocaleTimeString('es-CR', {hour: '2-digit', minute:'2-digit'});
-    s.estado = "Autorizado por Jefatura";
-    activeTicketId = s.id;
-
-    guardarSolicitudesLS();
-
-    // Notificar al backend en modo Live para actualizar Sheets y despachar correos
-    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
-      try {
-        await fetch(EIQ_CONFIG.API_BACKEND_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          redirect: 'follow',
-          body: JSON.stringify({
-            action: "autorizar_jefatura",
-            ticketId: s.id,
-            jefeNombre: s.jefeNombre,
-            jefeCargo: s.jefeCargo,
-            jefeTituloSig: s.jefeTituloSig,
-            jefeIniciales: s.jefeIniciales,
-            esDelegado: s.esDelegado,
-            auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
-          })
-        });
-      } catch (err) {
-        console.warn("Aviso al sincronizar autorización con el servidor:", err);
+      if (chkDelegacion && chkDelegacion.checked) {
+        nuevoJefeNombre = document.getElementById('delegado-nombre').value.trim() || "Dra. Rebeca Salazar Vega";
+        nuevoJefeCargo = document.getElementById('delegado-cargo').value.trim() || "Jefa de Laboratorio a.i.";
+        nuevoJefeTituloSig = 'V.B. ' + nuevoJefeCargo;
+        nuevoJefeIniciales = document.getElementById('delegado-iniciales').value.trim().toUpperCase() || "RSV";
+        nuevoEsDelegado = true;
       }
-    }
 
-    renderTable();
-    updateKPIs();
-    showGeneralAlert("Solicitud Autorizada", `Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial y se han enviado las notificaciones automáticas por correo electrónico.`);
-    switchTab('carta');
+      // Notificar al backend en modo Live para actualizar Sheets y despachar correos
+      if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+        let respData = null;
+        let respOk = false;
+        let errorMsg = "";
+        try {
+          const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            redirect: 'follow',
+            body: JSON.stringify({
+              action: "autorizar_jefatura",
+              ticketId: s.id,
+              jefeNombre: nuevoJefeNombre,
+              jefeCargo: nuevoJefeCargo,
+              jefeTituloSig: nuevoJefeTituloSig,
+              jefeIniciales: nuevoJefeIniciales,
+              esDelegado: nuevoEsDelegado,
+              auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
+            })
+          });
+          respOk = resp.ok;
+          try { respData = await resp.json(); } catch (e) {}
+          if (!respOk && !errorMsg) {
+            errorMsg = `El servidor devolvió un error HTTP ${resp.status}.`;
+          }
+        } catch (err) {
+          console.warn("Aviso al sincronizar autorización con el servidor:", err);
+          errorMsg = "No se pudo establecer comunicación con el servidor institucional.";
+        }
+
+        if (!respOk || !respData || !respData.success) {
+          showGeneralAlert("Error de Autorización", (respData && respData.error) || errorMsg || "El servidor rechazó la autorización. Verifique que su sesión de Jefatura siga activa.");
+          return;
+        }
+      }
+
+      // Solo se muta el estado local y se persiste si el backend confirmó la autorización
+      s.jefeNombre = nuevoJefeNombre;
+      s.jefeCargo = nuevoJefeCargo;
+      s.jefeTituloSig = nuevoJefeTituloSig;
+      s.jefeIniciales = nuevoJefeIniciales;
+      s.esDelegado = nuevoEsDelegado;
+      s.jefeAprobado = true;
+      s.jefeFecha = new Date().toLocaleDateString('es-CR') + " " + new Date().toLocaleTimeString('es-CR', {hour: '2-digit', minute:'2-digit'});
+      s.estado = "Autorizado por Jefatura";
+      activeTicketId = s.id;
+
+      guardarSolicitudesLS();
+      renderTable();
+      updateKPIs();
+      showGeneralAlert("Solicitud Autorizada", `Solicitud #${id} AUTORIZADA por ${s.jefeNombre} (${s.jefeCargo}).\n\nSe ha emitido la Carta Oficial y se han enviado las notificaciones automáticas por correo electrónico.`);
+      switchTab('carta');
+    } finally {
+      hideSubmissionLoading();
+    }
   };
 
   window.verCarta = function(id) {
@@ -9392,7 +9518,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getEffectiveRole() {
     const params = new URLSearchParams(window.location.search);
-    const claveParam = (params.get('clave') || params.get('password') || params.get('pin') || '').trim();
     const modoParam = (params.get('modo') || '').toLowerCase();
 
     // 1. Solicitud explícita de salir a modo estudiante o cerrar sesión
@@ -9402,12 +9527,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return 'estudiante';
     }
 
-    // 2. Si viene una clave por URL (ej: marcador personal seguro)
-    if (claveParam) {
-      verificarClaveDirectaUrl(claveParam);
-    }
-
-    // 3. Memoria persistente autenticada en este navegador
+    // 2. Memoria persistente autenticada en este navegador (verificada criptográficamente)
     const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
     if (savedRole === 'jefatura' && savedToken) {
@@ -9415,28 +9535,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return 'estudiante';
-  }
-
-  async function verificarClaveDirectaUrl(clave) {
-    if (!clave) return;
-    if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
-      try {
-        const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=validar_clave_jefatura&clave=${encodeURIComponent(clave)}`);
-        const res = await resp.json();
-        if (res && res.success) {
-          localStorage.setItem(AUTH_TOKEN_KEY, res.token);
-          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
-          // Limpiar la contraseña de la barra de direcciones por seguridad
-          if (window.history.replaceState) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-          applyRoleVisibility('jefatura');
-          return;
-        }
-      } catch (e) {
-        console.warn("Aviso al validar credencial directa:", e);
-      }
-    }
   }
 
   function applyRoleVisibility(role, isInitialLoad = false) {
@@ -9568,66 +9666,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         console.warn("Aviso al validar clave con backend:", err);
-        // Fallback contingencia si hay error de red o timeout
-        let perfilContingencia = null;
-        if (clave === 'EIQ#Adrian2026!' || clave === 'EIQ#Jefatura2026!') {
-          perfilContingencia = { nombre: "Ing. Adrián Serrano Mora, Ph.D.", cargo: "Jefe de Laboratorio", iniciales: "ASM", lab: "general", rolId: "adrian" };
-        } else if (clave === 'EIQ#MariaElena2026!') {
-          perfilContingencia = { nombre: "Lic. María Elena Sibaja García", cargo: "Subcoordinadora Laboratorio Instrumental", iniciales: "MESG", lab: "instrumental", rolId: "mariaelena" };
-        } else if (clave === 'EIQ#Suplente2026!') {
-          perfilContingencia = { nombre: "Persona Suplente Autorizada", cargo: "Jefatura de Laboratorio a.i.", iniciales: "SUPL", lab: "todos", rolId: "suplente" };
-        }
-
-        if (perfilContingencia) {
-          localStorage.setItem(AUTH_TOKEN_KEY, 'fallback_secure_token_' + perfilContingencia.rolId);
-          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
-          localStorage.setItem('eiq_funcionario_nombre', perfilContingencia.nombre);
-          localStorage.setItem('eiq_funcionario_cargo', perfilContingencia.cargo);
-          localStorage.setItem('eiq_funcionario_iniciales', perfilContingencia.iniciales);
-          localStorage.setItem('eiq_funcionario_lab', perfilContingencia.lab);
-          localStorage.setItem('eiq_funcionario_rol_id', perfilContingencia.rolId);
-
-          closeAdminPinModal();
-          applyRoleVisibility('jefatura');
-          showGeneralAlert("Acceso Concedido", `Bienvenido(a), ${perfilContingencia.nombre} (Modo Contingencia).`);
-        } else {
-          if (adminPinError) {
-            adminPinError.textContent = "Error al conectar con el servidor institucional. Verifique su conexión.";
-            adminPinError.style.display = "block";
-          }
+        if (adminPinError) {
+          adminPinError.textContent = "No se pudo conectar con el servidor institucional para validar las credenciales. Por favor verifique su conexión e intente nuevamente.";
+          adminPinError.style.display = "block";
         }
       } finally {
         if (adminPinStatus) adminPinStatus.style.display = "none";
         if (btnConfirmPin) btnConfirmPin.disabled = false;
       }
     } else {
-      // Modo Simulación Local (sin backend live)
-      let perfilSim = null;
-      if (clave === 'EIQ#Adrian2026!' || clave === 'EIQ#Jefatura2026!' || clave.toLowerCase() === 'adrian' || clave.toLowerCase() === 'jefatura') {
-        perfilSim = { nombre: "Ing. Adrián Serrano Mora, Ph.D.", cargo: "Jefe de Laboratorio", iniciales: "ASM", lab: "general", rolId: "adrian" };
-      } else if (clave === 'EIQ#MariaElena2026!' || clave.toLowerCase() === 'mariaelena') {
-        perfilSim = { nombre: "Lic. María Elena Sibaja García", cargo: "Subcoordinadora Laboratorio Instrumental", iniciales: "MESG", lab: "instrumental", rolId: "mariaelena" };
-      } else if (clave === 'EIQ#Suplente2026!' || clave.toLowerCase() === 'suplente') {
-        perfilSim = { nombre: "Persona Suplente Autorizada", cargo: "Jefatura de Laboratorio a.i.", iniciales: "SUPL", lab: "todos", rolId: "suplente" };
-      }
-
-      if (perfilSim) {
-        localStorage.setItem(AUTH_TOKEN_KEY, 'simulated_admin_token_' + perfilSim.rolId);
-        localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
-        localStorage.setItem('eiq_funcionario_nombre', perfilSim.nombre);
-        localStorage.setItem('eiq_funcionario_cargo', perfilSim.cargo);
-        localStorage.setItem('eiq_funcionario_iniciales', perfilSim.iniciales);
-        localStorage.setItem('eiq_funcionario_lab', perfilSim.lab);
-        localStorage.setItem('eiq_funcionario_rol_id', perfilSim.rolId);
-
-        closeAdminPinModal();
-        applyRoleVisibility('jefatura');
-        showGeneralAlert("Acceso Concedido", `Modo Simulación: ${perfilSim.nombre} activo.`);
-      } else {
-        if (adminPinError) {
-          adminPinError.textContent = "Contraseña incorrecta.";
-          adminPinError.style.display = "block";
-        }
+      // Modo Local sin backend configurado
+      if (adminPinError) {
+        adminPinError.textContent = "El sistema se encuentra en modo local de demostración. Para acceder al panel de Jefatura se requiere conexión activa con el servidor institucional.";
+        adminPinError.style.display = "block";
       }
       if (adminPinStatus) adminPinStatus.style.display = "none";
       if (btnConfirmPin) btnConfirmPin.disabled = false;
@@ -9686,7 +9737,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- Manejo Accesible de Tecla Escape para Cierre de Modales (WCAG 2.1 SC 2.1.2) ---
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      const dismissibleModals = [
+        { modalId: 'modal-general-alert', btnId: 'btn-alert-modal-ok' },
+        { modalId: 'modal-admin-pin', btnId: 'btn-cancel-modal-pin' },
+        { modalId: 'modal-subsanacion', btnId: 'btn-cancel-modal-subsanacion' },
+        { modalId: 'modal-jefatura-devolucion', btnId: 'btn-cancel-devolucion' },
+        { modalId: 'modal-revision-jefatura', btnId: 'btn-modal-cancel' },
+        { modalId: 'modal-submission-feedback', btnId: 'btn-feedback-cerrar' }
+      ];
+      for (const m of dismissibleModals) {
+        const el = document.getElementById(m.modalId);
+        if (el && !el.classList.contains('hidden')) {
+          const btn = document.getElementById(m.btnId);
+          if (btn) {
+            btn.click();
+          } else {
+            el.classList.add('hidden');
+          }
+          break;
+        }
+      }
+    }
+  });
+
   // --- Inicialización General del Portal ---
+  if (typeof EIQ_CONFIG !== 'undefined' && !EIQ_CONFIG.isLiveMode()) {
+    let simBanner = document.getElementById('sim-mode-banner');
+    if (!simBanner) {
+      simBanner = document.createElement('div');
+      simBanner.id = 'sim-mode-banner';
+      simBanner.style.cssText = 'background: #fff3cd; color: #856404; border-bottom: 2px solid #ffeeba; text-align: center; padding: 6px 12px; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px;';
+      simBanner.textContent = "MODO SIMULACIÓN — sin conexión al servidor institucional";
+      document.body.insertBefore(simBanner, document.body.firstChild);
+    }
+  }
+
   updateLabTypeForm();
   applyRoleVisibility(getEffectiveRole(), true);
 });

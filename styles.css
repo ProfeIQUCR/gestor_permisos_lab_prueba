@@ -20,8 +20,8 @@
   --border-focus: #0077C8;
   
   --text-main: #0F172A;
-  --text-muted: #64748B;
-  --text-light: #94A3B8;
+  --text-muted: #475569;
+  --text-light: #64748B;
 
   /* Semantic Feedback Colors */
   --color-success: #10B981;
@@ -67,10 +67,31 @@ body {
 }
 
 /* ==========================================================================
+   WCAG 2.1 AA Focus Visible & Keyboard Navigation (SC 2.4.7 / SC 2.1.1)
+   ========================================================================== */
+:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px !important;
+}
+
+.top-header button:focus-visible,
+.top-header a:focus-visible {
+  outline: 2px solid #FFFFFF !important;
+  outline-offset: 2px !important;
+}
+
+.form-control:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 0 !important;
+  border-color: var(--border-focus) !important;
+}
+
+/* ==========================================================================
    Header & Navigation
    ========================================================================== */
 .top-header {
-  background: linear-gradient(135deg, var(--ucr-blue-dark) 0%, var(--ucr-blue-primary) 100%);
+  background-color: var(--ucr-blue-dark);
+  background-image: linear-gradient(135deg, var(--ucr-blue-dark) 0%, var(--ucr-blue-primary) 100%);
   color: #FFFFFF;
   padding: 0.85rem 1.5rem;
   box-shadow: var(--shadow-md);
@@ -114,7 +135,7 @@ body {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--ucr-cyan);
+  color: #00B5E2;
   font-weight: 600;
 }
 
@@ -142,9 +163,9 @@ body {
 }
 
 .badge-status.online {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6EE7B7;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #065F46;
+  color: #FFFFFF;
+  border: 1px solid #10B981;
 }
 
 .badge-status.online::before {
@@ -200,7 +221,7 @@ body {
 .nav-tab.active {
   color: var(--ucr-blue-primary);
   border-bottom-color: var(--ucr-blue-light);
-  background: rgba(0, 119, 200, 0.05);
+  background: #EFF6FF;
 }
 
 .tab-pill {
@@ -271,6 +292,8 @@ body {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
   gap: 0.75rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .step-item {
@@ -317,6 +340,39 @@ body {
   width: 24px;
   height: 2px;
   background: var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .progress-stepper {
+    padding: 0.5rem 0.75rem;
+    gap: 0.35rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 580px) {
+  .progress-stepper {
+    padding: 0.45rem 0.5rem;
+    gap: 0.25rem;
+    justify-content: space-between;
+    overflow-x: hidden;
+  }
+  .step-item {
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .step-item:not(.active) {
+    font-size: 0;
+  }
+  .step-item:not(.active) span {
+    font-size: 0.75rem;
+  }
+  .step-line {
+    width: 14px;
+    min-width: 6px;
+    flex-shrink: 1;
+  }
 }
 
 /* ==========================================================================
@@ -2420,20 +2476,24 @@ body {
 }
 
 .btn-subsanacion-trigger {
-  background: #0284C7;
+  background: #0369A1;
   color: #FFFFFF;
-  border: none;
-  padding: 0.55rem 1rem;
-  font-size: 0.82rem;
+  border: 1px solid #0284C7;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.85rem;
   font-weight: 600;
   border-radius: 6px;
+  min-height: 42px;
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.2s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-subsanacion-trigger:hover {
-  background: #0369A1;
+  background: #075985;
 }
 
 .subsanacion-active-card {
@@ -2641,6 +2701,61 @@ body {
   border-top: 1px dashed #FDE68A;
   padding-top: 0.4rem;
   margin-top: 0.4rem;
+}
+
+/* ==========================================================================
+   WCAG 2.1 AA Ergonomía Móvil y Touch Targets (SC 1.4.10, SC 2.5.5)
+   ========================================================================== */
+@media (max-width: 640px) {
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  .main-content {
+    padding: 0 0.75rem;
+    margin: 1rem auto;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .form-card {
+    padding: 1.25rem 0.85rem;
+    border-radius: 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .summary-sidebar {
+    position: static;
+    margin-top: 1.5rem;
+    width: 100%;
+  }
+  .summary-card {
+    padding: 1.25rem 1rem;
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn-next, .btn-prev {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #btn-add-integrante, .btn-add-row {
+    min-height: 42px;
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .subsanacion-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .btn-subsanacion-trigger {
+    width: 100%;
+  }
 }
 
 /* Print Media Rules */

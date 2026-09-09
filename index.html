@@ -278,7 +278,7 @@
                       <tr>
                         <td>¿Se cuenta con los reactivos para la realización de los análisis?</td>
                         <td class="text-right">
-                          <select id="sel-instr-reactivos" class="form-control form-control-xs">
+                          <select id="sel-instr-reactivos" class="form-control form-control-xs" aria-label="¿Se cuenta con los reactivos para la realización de los análisis?">
                             <option value="si">Sí</option>
                             <option value="no">No</option>
                             <option value="n/A">N/A</option>
@@ -288,7 +288,7 @@
                       <tr>
                         <td>¿Se cuenta con los consumibles (cubetas, portamuestras, etc.)?</td>
                         <td class="text-right">
-                          <select id="sel-instr-consumibles" class="form-control form-control-xs">
+                          <select id="sel-instr-consumibles" class="form-control form-control-xs" aria-label="¿Se cuenta con los consumibles (cubetas, portamuestras, etc.)?">
                             <option value="si">Sí</option>
                             <option value="no">No</option>
                             <option value="n/A">N/A</option>
@@ -298,7 +298,7 @@
                       <tr>
                         <td>¿Se cuenta con los patrones para la realización de los análisis?</td>
                         <td class="text-right">
-                          <select id="sel-instr-patrones" class="form-control form-control-xs">
+                          <select id="sel-instr-patrones" class="form-control form-control-xs" aria-label="¿Se cuenta con los patrones para la realización de los análisis?">
                             <option value="si">Sí</option>
                             <option value="no">No</option>
                             <option value="n/A">N/A</option>
@@ -308,7 +308,7 @@
                       <tr>
                         <td>¿Se cuenta con el método para el análisis deseado?</td>
                         <td class="text-right">
-                          <select id="sel-instr-metodo" class="form-control form-control-xs">
+                          <select id="sel-instr-metodo" class="form-control form-control-xs" aria-label="¿Se cuenta con el método para el análisis deseado?">
                             <option value="si">Sí</option>
                             <option value="no">No</option>
                             <option value="n/A">N/A</option>
@@ -445,7 +445,7 @@
                     <span class="label">Trace su firma (con dedo, lápiz digital o mouse):</span>
                     <button type="button" id="btn-clear-sig" class="btn-text-xs">Borrar trazo</button>
                   </div>
-                  <canvas id="canvas-firma-estudiante" width="380" height="130" class="signature-canvas" style="touch-action: none;"></canvas>
+                  <canvas id="canvas-firma-estudiante" width="380" height="130" class="signature-canvas" style="max-width: 100%; touch-action: none;"></canvas>
                   <span class="canvas-hint">Área para trazado de firma manuscrita</span>
                 </div>
 
@@ -517,7 +517,9 @@
                 <span class="sum-label">Reactivos:</span>
                 <span class="sum-val" id="sum-reactivos-count">—</span>
               </div>
-                <div class="summary-status-box">
+            </div>
+
+            <div class="summary-status-box">
               <div class="status-indicator waiting">
                 <span class="dot"></span>
                 <span>Paso 1: Llenado en proceso</span>
@@ -683,7 +685,7 @@
             </div>
             <div class="table-filters">
               <input type="text" id="filter-search" class="form-control form-control-sm"
-                placeholder="Buscar por estudiante, carné o trámite...">
+                placeholder="Buscar por estudiante, carné o trámite..." aria-label="Buscar trámites por estudiante, carné o código">
               <select id="filter-lab" class="form-control form-control-sm visually-hidden" aria-label="Selector de laboratorio">
                 <option value="todos">Todos los Laboratorios</option>
                 <option value="general">Laboratorio General</option>
@@ -836,7 +838,7 @@
               <small class="text-muted">Cada solicitud aprobada o ingresada en el portal alimenta este registro automáticamente con fecha y año de trámite:</small>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <input type="text" id="filter-ledger-search" class="form-control form-control-sm" placeholder="Buscar en bitácora..." style="max-width: 220px; font-size: 0.8rem; padding: 0.35rem 0.65rem;">
+              <input type="text" id="filter-ledger-search" class="form-control form-control-sm" placeholder="Buscar en bitácora..." aria-label="Buscar en la bitácora histórica de reactivos" style="max-width: 220px; font-size: 0.8rem; padding: 0.35rem 0.65rem;">
             </div>
           </div>
           <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
@@ -1053,14 +1055,14 @@
     <!-- ========================================================================= -->
     <!-- MODAL: EXPEDIENTE DE REVISIÓN EN FORMATO CARTA OFICIAL PARA JEFATURA -->
     <!-- ========================================================================= -->
-    <div id="modal-revision-jefatura" class="modal-backdrop hidden">
+    <div id="modal-revision-jefatura" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-rev-id">
       <div class="modal-card" style="max-width: 900px;">
         <div class="modal-header">
           <div>
             <h3 id="modal-rev-id" class="font-bold" style="color: var(--ucr-blue-dark); font-family: var(--font-heading); margin: 0;">Expediente de Solicitud</h3>
             <small id="modal-rev-lab" class="text-muted">Revisión formal de la Carta de Solicitud de Laboratorio</small>
           </div>
-          <button type="button" id="btn-close-modal-jefatura" class="btn-text-action" style="font-size: 1rem;">Cerrar ✕</button>
+          <button type="button" id="btn-close-modal-jefatura" class="btn-text-action" style="font-size: 0.9rem;" aria-label="Cerrar ventana de revisión">Cerrar</button>
         </div>
 
         <div class="modal-body" style="background: #E2E8F0; padding: 1.5rem;">
@@ -1086,13 +1088,13 @@
     <!-- ========================================================================= -->
     <!-- MODAL: CORTINA DE CARGA INSTITUCIONAL / ANTI-SPAM (ENVÍO EN PROCESO) -->
     <!-- ========================================================================= -->
-    <div id="modal-submission-loading" class="modal-backdrop hidden" style="z-index: 10000;">
+    <div id="modal-submission-loading" class="modal-backdrop hidden" style="z-index: 10000;" role="alertdialog" aria-modal="true" aria-labelledby="loading-title">
       <div class="submission-loading-card">
         <div class="submission-spinner-container">
           <div class="submission-spinner"></div>
           <div class="submission-pulse-circle"></div>
         </div>
-        <h3 class="submission-loading-title">Procesando Solicitud Institucional</h3>
+        <h3 id="loading-title" class="submission-loading-title">Procesando Solicitud Institucional</h3>
         <p id="submission-loading-msg" class="submission-loading-text">
           Transmitiendo datos de forma segura a los servidores institucionales de la EIQ...
         </p>
@@ -1108,7 +1110,7 @@
     <!-- ========================================================================= -->
     <!-- MODAL: CONFIRMACIÓN INSTITUCIONAL DE ENVÍO Y TRANQUILIDAD -->
     <!-- ========================================================================= -->
-    <div id="modal-submission-feedback" class="modal-backdrop hidden" style="z-index: 9999;">
+    <div id="modal-submission-feedback" class="modal-backdrop hidden" style="z-index: 9999;" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
       <div class="modal-card feedback-modal-card">
         <div class="feedback-modal-header" id="feedback-header">
           <div class="feedback-header-content">
@@ -1168,21 +1170,21 @@
     <!-- ========================================================================= -->
     <!-- MODAL: DEVOLUCIÓN DE SOLICITUD POR JEFATURA CON OBSERVACIONES -->
     <!-- ========================================================================= -->
-    <div id="modal-jefatura-devolucion" class="modal-backdrop hidden" style="z-index: 10001;">
+    <div id="modal-jefatura-devolucion" class="modal-backdrop hidden" style="z-index: 10001;" role="dialog" aria-modal="true" aria-labelledby="devolucion-modal-title">
       <div class="modal-card" style="max-width: 550px;">
         <div class="modal-header" style="background: #991B1B; color: #FFFFFF;">
           <div>
-            <h3 style="color: #FFFFFF; margin: 0; font-size: 1.15rem;">Devolver Solicitud para Corrección</h3>
+            <h3 id="devolucion-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.15rem;">Devolver Solicitud para Corrección</h3>
             <small style="color: #FCA5A5;">Jefatura / Coordinación de Laboratorios EIQ</small>
           </div>
-          <button type="button" id="btn-close-modal-devolucion" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+          <button type="button" id="btn-close-modal-devolucion" class="btn-text-action" style="color: #FFFFFF; font-size: 0.9rem;" aria-label="Cerrar ventana de devolución">Cerrar</button>
         </div>
         <div class="modal-body" style="padding: 1.5rem;">
           <p style="margin-top: 0; color: #334155; font-size: 0.95rem;">
             Indique las observaciones y motivos específicos de la devolución para la persona estudiante (<strong id="devolucion-student-name">—</strong>):
           </p>
           <div class="form-group" style="margin-bottom: 0;">
-            <textarea id="textarea-jefatura-observaciones" class="form-control" rows="4" placeholder="Ej. Ajustar el cronograma de fechas a la segunda semana y justificar el volumen solicitado del solvente..." required style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; font-size: 0.9rem; padding: 0.75rem;"></textarea>
+            <textarea id="textarea-jefatura-observaciones" class="form-control" rows="4" placeholder="Ej. Ajustar el cronograma de fechas a la segunda semana y justificar el volumen solicitado del solvente..." required aria-label="Observaciones y motivos de devolución para la persona estudiante" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; font-size: 0.9rem; padding: 0.75rem;"></textarea>
             <small class="form-text-hint" style="display: block; margin-top: 0.5rem; color: #64748B;">
               Estas observaciones se enviarán íntegramente por correo institucional a la persona estudiante con copia al docente responsable.
             </small>
@@ -1198,11 +1200,11 @@
     <!-- ========================================================================= -->
     <!-- MODAL: MENSAJE / ALERTA INSTITUCIONAL (REEMPLAZO DE ALERT NATIVO) -->
     <!-- ========================================================================= -->
-    <div id="modal-general-alert" class="modal-backdrop hidden" style="z-index: 10002;">
+    <div id="modal-general-alert" class="modal-backdrop hidden" style="z-index: 10002;" role="alertdialog" aria-modal="true" aria-labelledby="alert-modal-title">
       <div class="modal-card" style="max-width: 520px;">
         <div class="modal-header" id="alert-modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
           <h3 id="alert-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Aviso Institucional</h3>
-          <button type="button" id="btn-close-modal-alert" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+          <button type="button" id="btn-close-modal-alert" class="btn-text-action" style="color: #FFFFFF; font-size: 0.9rem;" aria-label="Cerrar aviso institucional">Cerrar</button>
         </div>
         <div class="modal-body" style="padding: 1.5rem; color: #334155; font-size: 0.95rem; line-height: 1.6;">
           <div id="alert-modal-content" style="white-space: pre-line;"></div>
@@ -1223,18 +1225,18 @@
   </footer>
 
   <!-- Modal Institucional para PIN de Acceso de Jefatura (sin alert ni prompt nativos) -->
-  <div id="modal-admin-pin" class="modal-backdrop hidden" style="z-index: 10003;">
+  <div id="modal-admin-pin" class="modal-backdrop hidden" style="z-index: 10003;" role="dialog" aria-modal="true" aria-labelledby="admin-pin-modal-title">
     <div class="modal-card" style="max-width: 420px;">
       <div class="modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
-        <h3 style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Acceso Administrativo Jefatura</h3>
-        <button type="button" id="btn-close-modal-pin" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+        <h3 id="admin-pin-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Acceso Administrativo Jefatura</h3>
+        <button type="button" id="btn-close-modal-pin" class="btn-text-action" style="color: #FFFFFF; font-size: 0.9rem;" aria-label="Cerrar ventana de acceso administrativo">Cerrar</button>
       </div>
       <div class="modal-body" style="padding: 1.5rem; color: #334155;">
         <p style="margin-top: 0; font-size: 0.9rem; line-height: 1.5;">
           Ingrese la contraseña alfanumérica de Jefatura / Coordinación para habilitar el panel administrativo:
         </p>
         <div class="form-group" style="margin-bottom: 0;">
-          <input type="password" id="input-admin-pin" class="form-control" placeholder="Contraseña de Jefatura" autocomplete="current-password" style="width: 100%; letter-spacing: 1px; font-size: 1rem; padding: 0.65rem;" />
+          <input type="password" id="input-admin-pin" class="form-control" placeholder="Contraseña de Jefatura" autocomplete="current-password" aria-label="Contraseña alfanumérica de Jefatura" style="width: 100%; letter-spacing: 1px; font-size: 1rem; padding: 0.65rem;" />
           <small id="admin-pin-status" style="color: #004C87; font-size: 0.8rem; display: none; margin-top: 0.4rem;">Validando credenciales con el servidor institucional...</small>
           <small id="admin-pin-error" style="color: #DC2626; font-size: 0.8rem; display: none; margin-top: 0.4rem;">Contraseña incorrecta. Por favor verifique.</small>
         </div>
@@ -1247,11 +1249,11 @@
   </div>
 
   <!-- Modal Institucional para Subsanación de Solicitud Devuelta -->
-  <div id="modal-subsanacion" class="modal-backdrop hidden" style="z-index: 10004;">
+  <div id="modal-subsanacion" class="modal-backdrop hidden" style="z-index: 10004;" role="dialog" aria-modal="true" aria-labelledby="subsanacion-modal-title">
     <div class="modal-card" style="max-width: 500px;">
       <div class="modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
-        <h3 style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Cargar Solicitud Devuelta para Subsanación</h3>
-        <button type="button" id="btn-close-modal-subsanacion" class="btn-text-action" style="color: #FFFFFF; font-size: 1rem;">✕</button>
+        <h3 id="subsanacion-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.05rem;">Cargar Solicitud Devuelta para Subsanación</h3>
+        <button type="button" id="btn-close-modal-subsanacion" class="btn-text-action" style="color: #FFFFFF; font-size: 0.9rem;" aria-label="Cerrar ventana de subsanación">Cerrar</button>
       </div>
       <div class="modal-body" style="padding: 1.5rem; color: #334155;">
         <p style="margin-top: 0; font-size: 0.88rem; line-height: 1.5; color: #475569;">
@@ -1281,8 +1283,8 @@
     </div>
   </div>
 
-  <!-- Generador de PDF en cliente (Descarga directa sin diálogos de impresión) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Generador de PDF en cliente (Descarga directa sin diálogos de impresión) con SRI -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWQV46GjQ47TRqdSWPhMhC263GFCX4UkRGIpen4279q8PX++AGN2OU65Lk2Q4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
