@@ -57,6 +57,13 @@
   padding: 0;
 }
 
+/* El atributo [hidden] debe ganar siempre sobre cualquier regla de "display"
+   de un componente (grid, flex, etc.), sin importar el orden en que se
+   declaren las clases en este archivo. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--bg-app);
