@@ -30,6 +30,8 @@
   --color-warning-bg: #FFFBEB;
   --color-danger: #EF4444;
   --color-danger-bg: #FEF2F2;
+  --color-danger-text: #DC2626;   /* rojo con contraste AA sobre blanco */
+  --color-gold-text: #9A6700;     /* ámbar con contraste AA sobre claro */
   --color-info: #3B82F6;
   --color-info-bg: #EFF6FF;
 
@@ -449,7 +451,7 @@ body {
 }
 
 .form-label .required {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .form-text-hint {
@@ -577,7 +579,7 @@ body {
 .btn-text-xs {
   background: none;
   border: none;
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -617,7 +619,7 @@ body {
 .btn-row-del {
   background: var(--color-danger-bg);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   width: 34px;
   height: 34px;
   border-radius: 8px;
@@ -758,19 +760,6 @@ body {
   font-weight: 600;
 }
 
-.signature-canvas {
-  width: 100%;
-  height: 130px;
-  background: #FFFFFF;
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
-  cursor: crosshair;
-  touch-action: none;
-}
-
-.signature-canvas:focus, .signature-canvas:hover {
-  border-color: var(--ucr-blue-light);
-}
 
 .canvas-hint {
   font-size: 0.72rem;
@@ -861,7 +850,7 @@ body {
 
 .btn-danger {
   background: var(--color-danger-bg);
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   border: 1px solid rgba(239, 68, 68, 0.3);
   padding: 0.75rem 1.25rem;
   border-radius: 8px;
@@ -2064,6 +2053,20 @@ body {
   margin-top: auto;
 }
 
+.skip-link {
+  position: absolute; left: 8px; top: -48px; z-index: 10050;
+  background: var(--ucr-blue-dark); color: #FFFFFF;
+  padding: 8px 14px; border-radius: 6px; font-weight: 600; text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 8px; }
+
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 .hidden { display: none !important; }
 .font-bold { font-weight: 700; }
 .mb-0 { margin-bottom: 0 !important; }
@@ -2790,3 +2793,13 @@ body {
     max-width: 100%;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

@@ -24,6 +24,13 @@ const EIQ_CONFIG = {
     INSTRUMENTAL: "instrumental.eiq@ucr.ac.cr"
   },
 
+  // Control de consentimiento expreso para tratamiento de datos personales (P6b)
+  // Obligatorio por decisión institucional (10/09/2026), afinable con la parte legal de la UCR.
+  REQUIERE_CONSENTIMIENTO_EXPLICITO: true,
+
+  // Cloudflare Turnstile (S5). Vacío = sin verificación (modo simulación / pre-configuración).
+  TURNSTILE_SITE_KEY: "",
+
   /**
    * Verifica si el sistema está conectado al backend en vivo de Google Apps Script
    */

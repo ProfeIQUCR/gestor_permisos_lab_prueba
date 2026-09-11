@@ -98,8 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Core State ---
   let currentStep = 1;
-  let activeTicketId = "LG-PERM-2026-0042";
-  let studentSignatureDataUrl = null;
+  let activeTicketId = null;
+  let turnstileToken = "";
+  let turnstileTokenCTFG = "";
+  let isSubmittingCTFG = false;
   // =============================================================================
   // PERSISTENCIA EN localStorage — Las solicitudes sobreviven recargas de página
   // =============================================================================
@@ -107,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const SOLICITUDES_DEMO = [
     {
+      _demo: true,
       _isDemo: true,
       id: "LG-PERM-2026-0042",
       tipoLaboratorio: "general",
@@ -133,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
       consumibles: [],
       integrantes: [],
       inicialesEstudiante: "MRC",
-      signatureDataUrl: null,
       estado: "Pendiente Visto Bueno",
       docenteAprobado: false,
       docenteFecha: null,
@@ -148,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "20/08/2026 11:30"
     },
     {
+      _demo: true,
       _isDemo: true,
       id: "LI-PERM-2026-0041",
       tipoLaboratorio: "instrumental",
@@ -177,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ],
       integrantes: [],
       inicialesEstudiante: "MJGN",
-      signatureDataUrl: null,
       estado: "Autorizado por Jefatura",
       docenteAprobado: true,
       docenteFecha: "19/08/2026 14:20",
@@ -192,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "19/08/2026 10:00"
     },
     {
+      _demo: true,
       _isDemo: true,
       id: "COT-PERM-2026-0040",
       tipoLaboratorio: "cotrafin",
@@ -218,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
       consumibles: [],
       integrantes: [],
       inicialesEstudiante: "CMR",
-      signatureDataUrl: null,
       estado: "Autorizado por Jefatura",
       docenteAprobado: true,
       docenteFecha: "18/08/2026 16:00",
@@ -233,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: "18/08/2026 11:15"
     },
     {
+      _demo: true,
       _isDemo: true,
       id: "LG-PERM-2026-0039",
       tipoLaboratorio: "general",
@@ -259,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
       consumibles: [],
       integrantes: [],
       inicialesEstudiante: "CMV",
-      signatureDataUrl: null,
       estado: "V.B. Docente Otorgado",
       docenteAprobado: true,
       docenteFecha: "28/08/2026 10:15",
@@ -279,9 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function cargarSolicitudesLS() {
     try {
       const guardadas = localStorage.getItem(LS_KEY);
-      if (guardadas) {
+      if (guardadas !== null) {
         const parsed = JSON.parse(guardadas);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) { /* sin-op */ }
     return SOLICITUDES_DEMO.slice(); // copia de los datos de demo
@@ -321,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       if (result && result.success && Array.isArray(result.solicitudes)) {
-        const mapBackend = new Map(result.solicitudes.map(s => [s.id, s]));
         const merged = [];
 
         // Las solicitudes del backend van primero con normalización de estados
@@ -349,13 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
           merged.push(item);
         }
 
-        // Mantener registros locales legítimos creados en sesión que aún no figuren en backend y no sean demos
-        for (const s of solicitudes) {
-          if (!mapBackend.has(s.id) && !s._isDemo && !s.id.startsWith("LG-PERM-2026-0042") && !s.id.startsWith("LI-PERM-2026-0041") && !s.id.startsWith("COT-PERM-2026-0040") && !s.id.startsWith("LG-PERM-2026-0039")) {
-            merged.push(s);
-          }
-        }
-
+        // El backend es la única fuente de verdad (Single Source of Truth).
+        // Si result.solicitudes viene vacío (ej. tras limpiarRegistrosDePrueba),
+        // merged queda vacío y se refleja fielmente "0 trámites" (Mitigación L4).
         solicitudes = merged;
         guardarSolicitudesLS();
         renderTable();
@@ -374,9 +371,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const resp = await fetch(url);
       const html = await resp.text();
       const devuelto = html.includes('DEVUELTA PARA CORRECCIÓN') || html.includes('DEVUELTO');
+      const expirado = html.includes('EXPIRADO_SIN_CONFIRMACION') || html.includes('EXPIRADO') || html.includes('VENCIDO');
+      const pendienteConfirmacion = html.includes('PENDIENTE_CONFIRMACION_ESTUDIANTE') || html.includes('PENDIENTE DE CONFIRMACIÓN') || html.includes('CONFIRMACIÓN REQUERIDA');
       const aprobado = html.includes('APROBADO_DOCENTE') || html.includes('AUTORIZADO_JEFATURA') || html.includes('EMITIDO') || html.includes('CARTA AUTENTICADA');
       const pendiente = html.includes('EN PROCESO DE VISTO BUENO') || html.includes('PENDIENTE');
       if (devuelto) return 'DEVUELTO_DOCENTE';
+      if (expirado) return 'EXPIRADO_SIN_CONFIRMACION';
+      if (pendienteConfirmacion) return 'PENDIENTE_CONFIRMACION_ESTUDIANTE';
       if (aprobado) return 'APROBADO_DOCENTE';
       if (pendiente) return 'PENDIENTE_DOCENTE';
       return null;
@@ -414,12 +415,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const chkNoEquipos = document.getElementById('chk-no-equipos');
   const chkNoReactivos = document.getElementById('chk-no-reactivos');
+  const chkConsentimientoDatos = document.getElementById('chk-consentimiento-datos');
 
-  // Canvas Signature Elements
-  const canvasFirma = document.getElementById('canvas-firma-estudiante');
-  const btnClearSig = document.getElementById('btn-clear-sig');
-  let isDrawing = false;
-  let sigCtx = null;
+  if (chkConsentimientoDatos) {
+    chkConsentimientoDatos.addEventListener('change', () => {
+      if (chkConsentimientoDatos.checked && chkConsentimientoDatos.parentElement) {
+        chkConsentimientoDatos.parentElement.style.color = '';
+      }
+    });
+  }
 
   // Docente Approval Elements
   const textareaDocenteObs = document.getElementById('docente-observaciones');
@@ -453,6 +457,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // --- UI DIALOG & MODAL HELPERS (Reemplazo moderno de alert/prompt) ---
   // =========================================================================
+  const _modalFocusState = new WeakMap();
+  function activarFocoModal(modal) {
+    if (!modal) return;
+    const disparador = document.activeElement;
+    const foco = modal.querySelectorAll(
+      'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const focoVisible = Array.from(foco).filter(el => !el.disabled && el.offsetParent !== null);
+    const primero = focoVisible[0] || modal.querySelector('.modal-card');
+    const ultimo = focoVisible[focoVisible.length - 1] || primero;
+    if (primero && primero.focus) setTimeout(() => primero.focus(), 30);
+
+    function onKey(e) {
+      if (e.key !== 'Tab' || focoVisible.length === 0) return;
+      if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+      else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+    }
+    modal.addEventListener('keydown', onKey);
+    _modalFocusState.set(modal, { disparador, onKey });
+  }
+  function desactivarFocoModal(modal) {
+    if (!modal) return;
+    const st = _modalFocusState.get(modal);
+    if (st) {
+      modal.removeEventListener('keydown', st.onKey);
+      if (st.disparador && st.disparador.focus) setTimeout(() => st.disparador.focus(), 0);
+      _modalFocusState.delete(modal);
+    }
+  }
+
   function showGeneralAlert(title, message, isWarning = false) {
     const modal = document.getElementById('modal-general-alert');
     if (!modal) {
@@ -472,8 +506,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     modal.classList.remove('hidden');
+    activarFocoModal(modal);
 
     const closeHandler = () => {
+      desactivarFocoModal(modal);
       modal.classList.add('hidden');
       if (btnOk) btnOk.removeEventListener('click', closeHandler);
       if (btnClose) btnClose.removeEventListener('click', closeHandler);
@@ -515,7 +551,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ticketBox) ticketBox.style.display = "flex";
       if (ticketCode) ticketCode.textContent = opts.ticketId || "—";
       if (reassuranceText) {
-        reassuranceText.innerHTML = "<strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).";
+        if (opts.correoConfirmacionPendiente) {
+          reassuranceText.innerHTML = "<strong>Su solicitud quedó registrada con código " + (opts.ticketId || "—") + ".</strong> Por saturación temporal del servicio de correo, el enlace de confirmación puede tardar unos minutos en llegar a su buzón institucional. No vuelva a enviar la solicitud; el sistema la reintentará automáticamente.";
+        } else {
+          reassuranceText.innerHTML = "<strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).";
+        }
       }
     } else {
       // Contingencia ante intermitencia o latencia extrema
@@ -530,9 +570,54 @@ document.addEventListener('DOMContentLoaded', () => {
     if (docenteCorreo) docenteCorreo.textContent = opts.docenteCorreo || "—";
     if (estudianteCorreo) estudianteCorreo.textContent = opts.estudianteCorreo || "—";
 
+    const btnReenviar = document.getElementById('btn-feedback-reenviar');
+    if (btnReenviar) {
+      btnReenviar.onclick = async () => {
+        const ticketId = opts.ticketId;
+        const carne = opts.carneEstudiante || (document.getElementById('carneEstudiante')?.value || '').trim();
+        if (!ticketId) {
+          showGeneralAlert("Reenvío de Confirmación", "No se dispone del código de solicitud para el reenvío.");
+          return;
+        }
+
+        btnReenviar.disabled = true;
+        btnReenviar.textContent = "Reenviando...";
+
+        if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+          try {
+            const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                action: "reenviar_confirmacion",
+                id: ticketId,
+                carne: carne
+              }),
+              redirect: 'follow'
+            });
+            const resJson = await resp.json();
+            if (resJson.success) {
+              showGeneralAlert("Confirmación Reenviada", resJson.mensaje || "Se ha reenviado el enlace de confirmación a su correo institucional.");
+            } else {
+              showGeneralAlert("Aviso de Reenvío", resJson.error || "No fue posible reenviar la confirmación.");
+            }
+          } catch (e) {
+            showGeneralAlert("Error de Conexión", "No fue posible comunicarse con el servidor central para el reenvío.");
+          }
+        } else {
+          // Modo simulación local
+          showGeneralAlert("Simulación Local", `Se simuló el reenvío del correo de confirmación para el expediente ${ticketId} a la cuenta institucional.`);
+        }
+        btnReenviar.disabled = false;
+        btnReenviar.textContent = "No me llegó el correo — reenviar";
+      };
+    }
+
     modal.classList.remove('hidden');
+    activarFocoModal(modal);
 
     const handleClose = () => {
+      desactivarFocoModal(modal);
       modal.classList.add('hidden');
       if (btnCerrar) btnCerrar.removeEventListener('click', handleClose);
       subsanacionOriginalId = null;
@@ -541,16 +626,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCerrar) btnCerrar.addEventListener('click', handleClose, { once: true });
 
     const handleNueva = () => {
+      desactivarFocoModal(modal);
       modal.classList.add('hidden');
       if (btnNueva) btnNueva.removeEventListener('click', handleNueva);
       subsanacionOriginalId = null;
       if (subsanacionActiveBox) subsanacionActiveBox.classList.add('hidden');
       form.reset();
-      if (sigCtx) {
-        sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
-        studentSignatureDataUrl = null;
-      }
       updateLabTypeForm();
+      if (typeof turnstile !== 'undefined') {
+        try { turnstile.reset('#cf-turnstile-widget'); } catch (e) {}
+      }
+      turnstileToken = "";
       goToStep(1);
     };
     if (btnNueva) btnNueva.addEventListener('click', handleNueva, { once: true });
@@ -595,74 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- Initialize Signature Canvas ---
-  if (canvasFirma) {
-    sigCtx = canvasFirma.getContext('2d');
-    sigCtx.strokeStyle = '#002B49';
-    sigCtx.lineWidth = 2.5;
-    sigCtx.lineCap = 'round';
-    sigCtx.lineJoin = 'round';
-
-    function getCanvasCoordinates(e) {
-      const rect = canvasFirma.getBoundingClientRect();
-      const scaleX = canvasFirma.width / rect.width;
-      const scaleY = canvasFirma.height / rect.height;
-      let clientX = e.clientX;
-      let clientY = e.clientY;
-
-      if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      }
-      return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY
-      };
-    }
-
-    function startDrawing(e) {
-      isDrawing = true;
-      const pos = getCanvasCoordinates(e);
-      sigCtx.beginPath();
-      sigCtx.moveTo(pos.x, pos.y);
-      if (e.type.startsWith('touch')) e.preventDefault();
-    }
-
-    function draw(e) {
-      if (!isDrawing) return;
-      const pos = getCanvasCoordinates(e);
-      sigCtx.lineTo(pos.x, pos.y);
-      sigCtx.stroke();
-      if (e.type.startsWith('touch')) e.preventDefault();
-    }
-
-    function stopDrawing() {
-      if (isDrawing) {
-        isDrawing = false;
-        sigCtx.closePath();
-        studentSignatureDataUrl = canvasFirma.toDataURL();
-      }
-    }
-
-    canvasFirma.addEventListener('mousedown', startDrawing);
-    canvasFirma.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', stopDrawing);
-
-    canvasFirma.addEventListener('touchstart', startDrawing, { passive: false });
-    canvasFirma.addEventListener('touchmove', draw, { passive: false });
-    window.addEventListener('touchend', stopDrawing);
-
-    if (btnClearSig) {
-      btnClearSig.addEventListener('click', () => {
-        sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
-        studentSignatureDataUrl = null;
-      });
-    }
-  }
-
-    // =========================================================================
-  // --- CATALOGOS INTELIGENTES DE AUTOCOMPLETADO (SUGERENCIAS AL ESCRIBIR) ---
-  // =========================================================================
+  // --- Initialize Autocomplete Catalogs ---
   const CATALOG_EQUIPOS_GENERAL = [
     { name: "Horno / Estufa de Secado y Convección", tag: "General" },
     { name: "Balanza Analítica de Precisión (0.1 mg)", tag: "General" },
@@ -764,6 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // --- CATÁLOGO OFICIAL DE DOCENTES DE LA ESCUELA DE INGENIERÍA QUÍMICA ---
   // =========================================================================
+  // IMPORTANTE: este catálogo está DUPLICADO en deployment/codigo_apps_script.js (DIRECTORIO_DOCENTES_EIQ).
+  // Cualquier alta/baja/cambio de correo debe replicarse en AMBOS o validarDocenteOficial
+  // rechazará solicitudes legítimas. (Fuente única pendiente para Fase 5.)
   const CATALOG_DOCENTES_EIQ = [
     { name: "Adolfo Ulate Brenes", email: "adolfo.ulate@ucr.ac.cr" },
     { name: "Adrián Serrano Mora", email: "adrian.serrano@ucr.ac.cr" },
@@ -1128,6 +1150,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (inputCant.value) checkUnit();
   }
 
+  function esOrigenDeProyecto(valor) {
+    return /proyecto|unidad|centro/i.test(String(valor || ""));
+  }
+
+  function syncProyectoWrap(row, selectSel, inputSel) {
+    const sel = row.querySelector(selectSel);
+    const wrap = row.querySelector('.proyecto-wrap');
+    const inp = row.querySelector(inputSel);
+    if (!sel || !wrap || !inp) return;
+    if (esOrigenDeProyecto(sel.value)) {
+      wrap.classList.remove('hidden');
+      inp.setAttribute('required', '');
+    } else {
+      wrap.classList.add('hidden');
+      inp.removeAttribute('required');
+      inp.value = '';
+    }
+  }
+
   function createReactivoRow(labType, defaultVal = {}) {
     const row = document.createElement('div');
     row.className = 'dynamic-row reactivo-row';
@@ -1136,13 +1177,18 @@ document.addEventListener('DOMContentLoaded', () => {
       row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre y pureza del reactivo"></div><div class="row-cell-source" style="flex: 2;"><select class="form-control rec-origen" aria-label="Origen o suministro del reactivo"><option value="Solicitado al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicitado al laboratorio de la EIQ' ? ' selected' : '') + '>Solicitado al laboratorio de la EIQ</option><option value="Provisto por alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Provisto por algún proyecto de investigación' ? ' selected' : '') + '>Provisto por alg\u00fan proyecto de investigaci\u00f3n</option><option value="Solicitado a otra unidad o centro de investigaci\u00f3n"' + (defaultVal.origen === 'Solicitado a otra unidad o centro de investigación' ? ' selected' : '') + '>Solicitado a otra unidad o centro de investigaci\u00f3n</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de reactivo">\u2715</button>';
       attachTypeahead(row.querySelector('.rec-nombre'), CATALOG_REACTIVOS);
     } else {
-      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre y pureza del reactivo"></div><div class="row-cell-qty" style="position: relative;"><input type="text" class="form-control rec-cant" placeholder="Cantidad y unidad (ej: 500 mL, 50 g, 5 ft\u00b3) *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad y unidad del reactivo"><div class="unit-helper-container"><div class="unit-feedback-msg"></div><div class="unit-quick-chips"><span class="unit-chip" data-unit="mL" title="Mililitros (l\u00edquido)">mL</span><span class="unit-chip" data-unit="L" title="Litros (l\u00edquido / gas)">L</span><span class="unit-chip" data-unit="g" title="Gramos (s\u00f3lido)">g</span><span class="unit-chip" data-unit="kg" title="Kilogramos (s\u00f3lido)">kg</span><span class="unit-chip" data-unit="mg" title="Miligramos (s\u00f3lido)">mg</span><span class="unit-chip unit-chip-gas" data-unit="ft\u00b3" title="Pies c\u00fabicos (Gases en cilindro)">ft\u00b3</span></div></div></div><div class="row-cell-source"><select class="form-control rec-origen" aria-label="Origen o suministro del reactivo"><option value="Disponible en el laboratorio de la EIQ"' + (defaultVal.origen === 'Disponible en el laboratorio de la EIQ' ? ' selected' : '') + '>Disponible en el laboratorio de la EIQ</option><option value="Lo provee alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Lo provee algún proyecto de investigación' ? ' selected' : '') + '>Lo provee alg\u00fan proyecto de investigaci\u00f3n</option><option value="Lo provee centro de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Lo provee centro de investigación o unidad' ? ' selected' : '') + '>Lo provee centro de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de reactivo">\u2715</button>';
+      row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control rec-nombre" placeholder="Reactivo y pureza (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre y pureza del reactivo"></div><div class="row-cell-qty" style="position: relative;"><input type="text" class="form-control rec-cant" placeholder="Cantidad y unidad (ej: 500 mL, 50 g, 5 ft\u00b3) *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad y unidad del reactivo"><div class="unit-helper-container"><div class="unit-feedback-msg"></div><div class="unit-quick-chips"><span class="unit-chip" data-unit="mL" title="Mililitros (l\u00edquido)">mL</span><span class="unit-chip" data-unit="L" title="Litros (l\u00edquido / gas)">L</span><span class="unit-chip" data-unit="g" title="Gramos (s\u00f3lido)">g</span><span class="unit-chip" data-unit="kg" title="Kilogramos (s\u00f3lido)">kg</span><span class="unit-chip" data-unit="mg" title="Miligramos (s\u00f3lido)">mg</span><span class="unit-chip unit-chip-gas" data-unit="ft\u00b3" title="Pies c\u00fabicos (Gases en cilindro)">ft\u00b3</span></div></div></div><div class="row-cell-source"><select class="form-control rec-origen" aria-label="Origen o suministro del reactivo"><option value="Disponible en el laboratorio de la EIQ"' + (defaultVal.origen === 'Disponible en el laboratorio de la EIQ' ? ' selected' : '') + '>Disponible en el laboratorio de la EIQ</option><option value="Lo provee alg\u00fan proyecto de investigaci\u00f3n"' + (defaultVal.origen === 'Lo provee algún proyecto de investigación' ? ' selected' : '') + '>Lo provee alg\u00fan proyecto de investigaci\u00f3n</option><option value="Lo provee centro de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Lo provee centro de investigación o unidad' ? ' selected' : '') + '>Lo provee centro de investigaci\u00f3n o unidad</option></select></div><div class="row-cell-proyecto proyecto-wrap hidden"><input type="text" class="form-control rec-proyecto" placeholder="Nombre del proyecto o unidad" value="' + (defaultVal.nombreProyecto || '') + '" aria-label="Nombre del proyecto o unidad que provee el reactivo"></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de reactivo">\u2715</button>';
       attachTypeahead(row.querySelector('.rec-nombre'), CATALOG_REACTIVOS);
     }
 
     attachDeleteHandler(row);
     if (labType !== 'cotrafin') {
       setupReagentQuantityInput(row);
+      const selRec = row.querySelector('.rec-origen');
+      if (selRec) {
+        selRec.addEventListener('change', () => syncProyectoWrap(row, '.rec-origen', '.rec-proyecto'));
+        syncProyectoWrap(row, '.rec-origen', '.rec-proyecto');
+      }
     }
     return row;
   }
@@ -1150,9 +1196,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function createConsumibleRow(defaultVal = {}) {
     const row = document.createElement('div');
     row.className = 'dynamic-row consumible-row';
-    row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control con-nombre" placeholder="Consumible (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre del consumible"></div><div class="row-cell-qty"><input type="text" class="form-control con-cant" placeholder="Cantidad *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad del consumible"></div><div class="row-cell-source"><select class="form-control con-origen" aria-label="Origen o suministro del consumible"><option value="Solicita al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicita al laboratorio de la EIQ' ? ' selected' : '') + '>Solicita al laboratorio de la EIQ</option><option value="Provee proyecto de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Provee proyecto de investigación o unidad' ? ' selected' : '') + '>Provee proyecto de investigaci\u00f3n o unidad</option></select></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de consumible">\u2715</button>';
+    row.innerHTML = '<div class="row-cell-main"><input type="text" class="form-control con-nombre" placeholder="Consumible (escriba libremente)" value="' + (defaultVal.nombre || '') + '" aria-label="Nombre del consumible"></div><div class="row-cell-qty"><input type="text" class="form-control con-cant" placeholder="Cantidad *" value="' + (defaultVal.cantidad || '') + '" required aria-label="Cantidad del consumible"></div><div class="row-cell-source"><select class="form-control con-origen" aria-label="Origen o suministro del consumible"><option value="Solicita al laboratorio de la EIQ"' + (defaultVal.origen === 'Solicita al laboratorio de la EIQ' ? ' selected' : '') + '>Solicita al laboratorio de la EIQ</option><option value="Provee proyecto de investigaci\u00f3n o unidad"' + (defaultVal.origen === 'Provee proyecto de investigación o unidad' ? ' selected' : '') + '>Provee proyecto de investigaci\u00f3n o unidad</option></select></div><div class="row-cell-proyecto proyecto-wrap hidden"><input type="text" class="form-control con-proyecto" placeholder="Nombre del proyecto o unidad" value="' + (defaultVal.nombreProyecto || '') + '" aria-label="Nombre del proyecto o unidad que provee el consumible"></div><button type="button" class="btn-row-del" title="Eliminar fila" aria-label="Eliminar fila de consumible">\u2715</button>';
     attachTypeahead(row.querySelector('.con-nombre'), CATALOG_CONSUMIBLES);
     attachDeleteHandler(row);
+    const selCon = row.querySelector('.con-origen');
+    if (selCon) {
+      selCon.addEventListener('change', () => syncProyectoWrap(row, '.con-origen', '.con-proyecto'));
+      syncProyectoWrap(row, '.con-origen', '.con-proyecto');
+    }
     return row;
   }
 
@@ -1165,10 +1216,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Update Actividades dropdown strictly based on reference doc
     selectTipoActividad.innerHTML = config.actividades.map(act => `<option value="${act}">${act}</option>`).join('');
 
-    // 2. Update Commitments Checklist (Locked / Irremovable)
+    // 2. Update Commitments Checklist (Interactive & Mandatory - GC2)
     commitmentsContainer.innerHTML = config.compromisos.map((comp, idx) => `
-      <label class="checkbox-item locked">
-        <input type="checkbox" id="chk-comp-${idx}" checked onclick="return false;" tabindex="-1">
+      <label class="checkbox-item commitment-item">
+        <input type="checkbox" class="chk-commitment" id="chk-comp-${idx}" data-idx="${idx}" required>
         <span>${idx + 1}. ${comp}</span>
       </label>
     `).join('');
@@ -1214,6 +1265,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inputFInicio) inputFInicio.setAttribute('required', '');
       if (inputFFin) inputFFin.setAttribute('required', '');
       if (calloutCotrafinIntro) calloutCotrafinIntro.classList.add('hidden');
+    }
+
+    // 6. Toggle de notas institucionales específicas por laboratorio (GC3.3 y GC7)
+    const notaMuestras = document.getElementById('nota-muestras-instrumental');
+    if (notaMuestras) {
+      if (selectedLab === 'instrumental') {
+        notaMuestras.classList.remove('hidden');
+      } else {
+        notaMuestras.classList.add('hidden');
+      }
+    }
+
+    const notaCristaleria = document.getElementById('nota-cristaleria-cotrafin');
+    if (notaCristaleria) {
+      if (selectedLab === 'cotrafin') {
+        notaCristaleria.classList.remove('hidden');
+      } else {
+        notaCristaleria.classList.add('hidden');
+      }
     }
 
     // 6. Reset / rebuild dynamic rows for the active lab
@@ -1487,11 +1557,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 8. Limpiar firma electrónica y requerir nuevo trazo
-    if (canvasFirma && sigCtx) {
-      sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
-      studentSignatureDataUrl = null;
-    }
+    // 8. Limpiar iniciales de firma electrónica para requerir nueva validación
     setVal('inicialesEstudiante', '');
 
     // 9. Registrar id subsanado y mostrar tarjeta informativa activa
@@ -1586,10 +1652,6 @@ document.addEventListener('DOMContentLoaded', () => {
       subsanacionOriginalId = null;
       if (subsanacionActiveBox) subsanacionActiveBox.classList.add('hidden');
       form.reset();
-      if (sigCtx) {
-        sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
-        studentSignatureDataUrl = null;
-      }
       updateLabTypeForm();
       updateSummary();
     });
@@ -1651,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sum-reactivos-count').textContent = recTexto;
 
     const previewCodeEl = document.getElementById('preview-ticket-code');
-    if (previewCodeEl) previewCodeEl.textContent = activeTicketId;
+    if (previewCodeEl) previewCodeEl.textContent = activeTicketId || "Borrador de Solicitud";
     const previewDateEl = document.getElementById('preview-ticket-date');
     if (previewDateEl) previewDateEl.textContent = new Date().toLocaleDateString('es-CR');
   }
@@ -1724,28 +1786,86 @@ document.addEventListener('DOMContentLoaded', () => {
       item.classList.remove('active', 'completed');
       if (idx + 1 === stepNumber) {
         item.classList.add('active');
-      } else if (idx + 1 < stepNumber) {
-        item.classList.add('completed');
+        item.setAttribute('aria-current', 'step');
+      } else {
+        item.removeAttribute('aria-current');
+        if (idx + 1 < stepNumber) {
+          item.classList.add('completed');
+        }
       }
     });
 
+    const lr = document.getElementById('step-live-region');
+    if (lr) {
+      const titulos = ['Destino y Solicitante','Actividad y Docente','Equipos y Reactivos','Compromisos y Firma'];
+      lr.textContent = `Paso ${stepNumber} de 4: ${titulos[stepNumber - 1] || ''}`;
+    }
+
     updateSummary();
     window.scrollTo({ top: 100, behavior: 'smooth' });
+
+    if (stepNumber === 4) {
+      renderTurnstile();
+    }
+  }
+
+  const turnstileRetryStatePermiso = { count: 0 };
+  const turnstileRetryStateCTFG = { count: 0 };
+
+  function _renderTurnstileEn(containerSelector, onToken, retryStateObj) {
+    if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.TURNSTILE_SITE_KEY) return;
+    const widgetId = containerSelector.startsWith('#') ? containerSelector.substring(1) : containerSelector;
+    const widgetEl = document.getElementById(widgetId);
+    if (!widgetEl) return;
+    if (widgetEl.dataset.rendered === "true") return;
+
+    if (typeof turnstile === 'undefined') {
+      if (retryStateObj && retryStateObj.count < 10) {
+        retryStateObj.count++;
+        setTimeout(() => _renderTurnstileEn(containerSelector, onToken, retryStateObj), 250);
+      }
+      return;
+    }
+
+    try {
+      turnstile.render(containerSelector, {
+        sitekey: EIQ_CONFIG.TURNSTILE_SITE_KEY,
+        callback: (t) => { onToken(t); },
+        'error-callback': () => { onToken(""); },
+        'expired-callback': () => { onToken(""); }
+      });
+      widgetEl.dataset.rendered = "true";
+    } catch (e) {
+      console.warn("Aviso al inicializar Cloudflare Turnstile:", e);
+    }
+  }
+
+  function renderTurnstile() {
+    _renderTurnstileEn('#cf-turnstile-widget', (t) => { turnstileToken = t; }, turnstileRetryStatePermiso);
+  }
+
+  function renderTurnstileCTFG() {
+    _renderTurnstileEn('#cf-turnstile-widget-ctfg', (t) => { turnstileTokenCTFG = t; }, turnstileRetryStateCTFG);
   }
 
   function validateStep(step) {
     const currentStepEl = document.getElementById(`step-${step}`);
     const allInputs = currentStepEl.querySelectorAll('input, select, textarea');
     let isValid = true;
+    let primerInvalido = null;
 
     allInputs.forEach(input => {
+      // GC2: Excluir casillas de compromisos del loop genérico para presentar alerta modal específica de compromisos
+      if (input.classList.contains('chk-commitment')) return;
       if (!input.hasAttribute('required') || input.closest('.hidden')) return;
 
       if (input.type === 'checkbox' && !input.checked) {
         isValid = false;
+        if (!primerInvalido) primerInvalido = input;
         input.parentElement.style.color = 'var(--color-danger)';
       } else if (!input.value.trim()) {
         isValid = false;
+        if (!primerInvalido) primerInvalido = input;
         input.style.borderColor = 'var(--color-danger)';
       } else {
         input.style.borderColor = 'var(--border-color)';
@@ -1775,6 +1895,20 @@ document.addEventListener('DOMContentLoaded', () => {
               "La fecha final no puede ser anterior a la fecha de inicio del período solicitado.",
               true
             );
+            return false;
+          }
+
+          // Regla L1: La fecha de inicio no puede ser anterior a la fecha actual
+          const hoy = new Date();
+          const hoyYmd = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + String(hoy.getDate()).padStart(2, "0");
+          const dHoy = new Date(hoyYmd + "T00:00:00");
+          if (dIni < dHoy) {
+            showGeneralAlert(
+              "Fecha de Inicio Inválida",
+              "La fecha de inicio solicitada no puede ser anterior a la fecha actual (no se permiten fechas en el pasado).",
+              true
+            );
+            if (inputFIni) inputFIni.focus();
             return false;
           }
           if (labType === 'instrumental') {
@@ -1826,9 +1960,86 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    if (!isValid) {
-      showGeneralAlert("Campos Obligatorios Incompletos", "Por favor complete todos los campos obligatorios del formulario antes de continuar.", true);
+    // Validación de nombre de proyecto en reactivos y consumibles (GC3)
+    if (step === 3) {
+      let faltaProyecto = false;
+      const rowsToCheck = currentStepEl.querySelectorAll('.reactivo-row, .consumible-row');
+      rowsToCheck.forEach(row => {
+        const wrap = row.querySelector('.proyecto-wrap');
+        if (wrap && !wrap.classList.contains('hidden')) {
+          const inpPrj = row.querySelector('.rec-proyecto, .con-proyecto');
+          if (inpPrj && !inpPrj.value.trim()) {
+            faltaProyecto = true;
+            isValid = false;
+            inpPrj.style.borderColor = 'var(--color-danger)';
+          } else if (inpPrj) {
+            inpPrj.style.borderColor = 'var(--border-color)';
+          }
+        }
+      });
+
+      if (faltaProyecto) {
+        showGeneralAlert(
+          "Nombre de Proyecto Requerido",
+          "Indique el nombre del proyecto de investigación o unidad que provee cada reactivo o consumible marcado con ese origen.",
+          true
+        );
+        return false;
+      }
     }
+
+    // Validación dedicada de compromisos de seguridad en el Paso 4 (GC2)
+    // Se valida antes de la alerta genérica para que el estudiante reciba el mensaje específico de compromisos
+    if (step === 4) {
+      const casillas = document.querySelectorAll('#commitments-container .chk-commitment');
+      const faltan = Array.from(casillas).filter(c => !c.checked);
+      if (casillas.length > 0 && faltan.length > 0) {
+        faltan.forEach(c => { if (c.parentElement) c.parentElement.style.color = 'var(--color-danger)'; });
+        showGeneralAlert(
+          "Compromisos de Seguridad",
+          "Debe marcar todas las casillas de compromisos de seguridad para poder enviar la solicitud.",
+          true
+        );
+        faltan[0].focus();
+        faltan[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+      }
+      Array.from(casillas).forEach(c => { if (c.parentElement) c.parentElement.style.color = ''; });
+    }
+
+    if (!isValid) {
+      const lr = document.getElementById('form-error-live');
+      if (lr) lr.textContent = 'Hay campos obligatorios sin completar en este paso.';
+      if (primerInvalido) {
+        primerInvalido.focus();
+        primerInvalido.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      showGeneralAlert("Campos Obligatorios Incompletos", "Por favor complete todos los campos obligatorios del formulario antes de continuar.", true);
+      return false;
+    }
+
+    // Validación de consentimiento de datos en el Paso 4 (P6)
+    if (step === 4) {
+      if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.REQUIERE_CONSENTIMIENTO_EXPLICITO) {
+        const chkConsentimiento = document.getElementById('chk-consentimiento-datos');
+        if (chkConsentimiento && !chkConsentimiento.checked) {
+          if (chkConsentimiento.parentElement) {
+            chkConsentimiento.parentElement.style.color = 'var(--color-danger)';
+          }
+          showGeneralAlert(
+            "Tratamiento de Datos Personales",
+            "Debe leer y aceptar el tratamiento de datos personales para enviar la solicitud.",
+            true
+          );
+          chkConsentimiento.focus();
+          chkConsentimiento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        } else if (chkConsentimiento && chkConsentimiento.parentElement) {
+          chkConsentimiento.parentElement.style.color = '';
+        }
+      }
+    }
+
     return isValid;
   }
 
@@ -1839,6 +2050,14 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (isSubmitting) return; // Bloqueo estricto anti-doble clic / spam
     if (!validateStep(1) || !validateStep(2) || !validateStep(3) || !validateStep(4)) return;
+
+    if (EIQ_CONFIG.TURNSTILE_SITE_KEY && !turnstileToken) {
+      showGeneralAlert("Verificación de seguridad",
+        "Complete la verificación de seguridad (casilla de Cloudflare) antes de enviar la solicitud.",
+        true);
+      renderTurnstile();
+      return;
+    }
 
     isSubmitting = true;
     const btnSubmit = document.getElementById('btn-submit-solicitud');
@@ -1875,7 +2094,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const nom = row.querySelector('.rec-nombre')?.value.trim();
         const cant = row.querySelector('.rec-cant')?.value.trim() || "";
         const ori = row.querySelector('.rec-origen')?.value;
-        if (nom) reactivos.push({ nombre: nom, cantidad: cant, origen: ori });
+        const prj = row.querySelector('.rec-proyecto')?.value.trim() || "";
+        if (nom) reactivos.push({ nombre: nom, cantidad: cant, origen: ori, nombreProyecto: prj });
       });
     }
 
@@ -1886,7 +2106,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const nom = row.querySelector('.con-nombre')?.value.trim();
         const cant = row.querySelector('.con-cant')?.value.trim() || "";
         const ori = row.querySelector('.con-origen')?.value;
-        if (nom) consumibles.push({ nombre: nom, cantidad: cant, origen: ori });
+        const prj = row.querySelector('.con-proyecto')?.value.trim() || "";
+        if (nom) consumibles.push({ nombre: nom, cantidad: cant, origen: ori, nombreProyecto: prj });
       });
     }
 
@@ -1900,7 +2121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const prefix = getLabPrefix(labType);
     const yearNow = new Date().getFullYear();
-    const regexAnio = new RegExp(`-PERM-${yearNow}-(\\d{4})`);
+    const regexAnio = new RegExp(`(?:^|-)${prefix}-PERM-${yearNow}-(\\d{4})`);
     let maxCorrelativoLocal = 0;
     solicitudes.forEach(s => {
       const match = (s.id || '').match(regexAnio);
@@ -1938,9 +2159,10 @@ document.addEventListener('DOMContentLoaded', () => {
       reactivos: reactivos,
       consumibles: consumibles,
       integrantes: integrantes,
+      compromisosAceptados: document.querySelectorAll('#commitments-container .chk-commitment:checked').length,
+      turnstileToken: turnstileToken || "",
       inicialesEstudiante: document.getElementById('inicialesEstudiante').value.toUpperCase(),
-      signatureDataUrl: studentSignatureDataUrl,
-      estado: "Pendiente Visto Bueno",
+      estado: "Pendiente Confirmación Estudiante",
       docenteAprobado: false,
       docenteFecha: null,
       docenteObservaciones: "",
@@ -1982,6 +2204,9 @@ document.addEventListener('DOMContentLoaded', () => {
           nuevaSolicitud.id = ticketFinal;
           activeTicketId = ticketFinal;
           envioExitoso = true;
+          if (result.correoConfirmacionPendiente) {
+            nuevaSolicitud.correoConfirmacionPendiente = true;
+          }
         } else {
           throw new Error('Respuesta inicial en espera de confirmación');
         }
@@ -2047,13 +2272,215 @@ document.addEventListener('DOMContentLoaded', () => {
     showSubmissionFeedback({
       success: envioExitoso && !esContingencia,
       ticketId: ticketFinal,
+      carneEstudiante: nuevaSolicitud.carneEstudiante,
       docenteNombre: nuevaSolicitud.docenteResponsable,
       docenteCorreo: nuevaSolicitud.correoDocente,
       estudianteCorreo: nuevaSolicitud.correoEstudiante,
-      isContingency: esContingencia
+      isContingency: esContingencia,
+      correoConfirmacionPendiente: Boolean(nuevaSolicitud.correoConfirmacionPendiente)
     });
     // Se elimina switchTab('docente') para que el estudiante permanezca en su vista con el comprobante visible
   });
+
+  // --- Selector de Tipo de Trámite (Permiso vs Constancia TFG) ---
+  const radiosTipoTramite = document.querySelectorAll('input[name="tipoTramitePortal"]');
+  radiosTipoTramite.forEach(radio => {
+    radio.addEventListener('change', function() {
+      const wrapperPermiso = document.getElementById('wrapper-permiso');
+      const wrapperCTFG = document.getElementById('wrapper-constancia-tfg');
+      const stepper = document.querySelector('.progress-stepper');
+      const summarySidebar = document.querySelector('.summary-sidebar');
+
+      if (this.value === 'constancia_tfg') {
+        if (wrapperPermiso) wrapperPermiso.hidden = true;
+        if (stepper) {
+          stepper.hidden = true;
+          stepper.style.display = 'none';
+        }
+        if (summarySidebar) summarySidebar.hidden = true;
+        if (wrapperCTFG) wrapperCTFG.hidden = false;
+        renderTurnstileCTFG();
+        const lrTramite = document.getElementById('tramite-live-region');
+        if (lrTramite) lrTramite.textContent = "Mostrando formulario de Constancia para Defensa de TFG.";
+      } else if (this.value === 'permiso') {
+        if (wrapperPermiso) wrapperPermiso.hidden = false;
+        if (stepper) {
+          stepper.hidden = false;
+          stepper.style.display = '';
+        }
+        if (summarySidebar) summarySidebar.hidden = false;
+        if (wrapperCTFG) wrapperCTFG.hidden = true;
+        const lrTramite = document.getElementById('tramite-live-region');
+        if (lrTramite) lrTramite.textContent = "Mostrando formulario de Permiso de Laboratorio.";
+      }
+    });
+  });
+
+  // --- Envío de Solicitud de Constancia TFG (Independiente de Permisos) ---
+  const formCTFG = document.getElementById('form-constancia-tfg');
+  if (formCTFG) {
+    formCTFG.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isSubmittingCTFG) return; // Bloqueo estricto anti-doble clic
+
+      const inputNombre = document.getElementById('ctfgNombreEstudiante');
+      const inputCarne = document.getElementById('ctfgCarneEstudiante');
+      const inputCorreo = document.getElementById('ctfgCorreoEstudiante');
+      const errorLive = document.getElementById('form-error-live-ctfg');
+
+      // Limpiar marcas de error previas
+      [inputNombre, inputCarne, inputCorreo].forEach(inp => {
+        if (inp) inp.style.borderColor = '';
+      });
+      if (errorLive) errorLive.textContent = '';
+
+      const nombreVal = inputNombre ? inputNombre.value.trim() : '';
+      const carneVal = inputCarne ? inputCarne.value.trim() : '';
+      const correoVal = inputCorreo ? inputCorreo.value.trim() : '';
+
+      if (!nombreVal) {
+        if (inputNombre) {
+          inputNombre.style.borderColor = 'var(--color-danger)';
+          inputNombre.focus();
+        }
+        if (errorLive) errorLive.textContent = 'El nombre completo es requerido.';
+        showGeneralAlert('Campo Requerido', 'Por favor ingrese su nombre completo.', true);
+        return;
+      }
+
+      if (!carneVal) {
+        if (inputCarne) {
+          inputCarne.style.borderColor = 'var(--color-danger)';
+          inputCarne.focus();
+        }
+        if (errorLive) errorLive.textContent = 'El carné es requerido.';
+        showGeneralAlert('Campo Requerido', 'Por favor ingrese su número de carné.', true);
+        return;
+      }
+
+      if (!correoVal) {
+        if (inputCorreo) {
+          inputCorreo.style.borderColor = 'var(--color-danger)';
+          inputCorreo.focus();
+        }
+        if (errorLive) errorLive.textContent = 'El correo institucional es requerido.';
+        showGeneralAlert('Campo Requerido', 'Por favor ingrese su correo institucional.', true);
+        return;
+      }
+
+      if (!correoVal.toLowerCase().endsWith('@ucr.ac.cr')) {
+        if (inputCorreo) {
+          inputCorreo.style.borderColor = 'var(--color-danger)';
+          inputCorreo.focus();
+        }
+        if (errorLive) errorLive.textContent = 'El correo institucional debe pertenecer al dominio @ucr.ac.cr.';
+        showGeneralAlert('Correo Inválido', 'El correo institucional debe pertenecer al dominio institucional @ucr.ac.cr.', true);
+        return;
+      }
+
+      if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.REQUIERE_CONSENTIMIENTO_EXPLICITO) {
+        const chkConsentCTFG = document.getElementById('chk-consentimiento-datos-ctfg');
+        if (chkConsentCTFG && !chkConsentCTFG.checked) {
+          if (chkConsentCTFG.parentElement) chkConsentCTFG.parentElement.style.color = 'var(--color-danger)';
+          showGeneralAlert("Tratamiento de Datos Personales", "Debe leer y aceptar el tratamiento de datos personales para enviar la solicitud.", true);
+          chkConsentCTFG.focus();
+          chkConsentCTFG.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        } else if (chkConsentCTFG && chkConsentCTFG.parentElement) {
+          chkConsentCTFG.parentElement.style.color = '';
+        }
+      }
+
+      if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.TURNSTILE_SITE_KEY && !turnstileTokenCTFG) {
+        showGeneralAlert("Verificación de seguridad", "Complete la verificación de seguridad antes de enviar la solicitud.", true);
+        renderTurnstileCTFG();
+        return;
+      }
+
+      isSubmittingCTFG = true;
+      const btnSubmit = document.getElementById('btn-submit-constancia-tfg');
+      const textoOriginalBtn = btnSubmit ? btnSubmit.textContent : '';
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Enviando solicitud de constancia...';
+      }
+
+      const payloadCTFG = {
+        tipoTramite: "constancia_tfg",
+        nombreEstudiante: nombreVal,
+        carneEstudiante: carneVal,
+        correoEstudiante: correoVal,
+        turnstileToken: turnstileTokenCTFG || "",
+        idempotencyKey: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : ('idemp-ctfg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11))
+      };
+
+      try {
+        if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode && EIQ_CONFIG.isLiveMode()) {
+          const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payloadCTFG),
+            redirect: 'follow'
+          });
+          const rawText = await resp.text();
+          let result = null;
+          try { result = JSON.parse(rawText); } catch (e) {}
+
+          if (result && result.success) {
+            showGeneralAlert(
+              "Solicitud Enviada",
+              `Su solicitud de Constancia para Defensa de TFG fue registrada con el código ${result.ticketId}. Revise su correo institucional para confirmar el trámite.`,
+              false
+            );
+            formCTFG.reset();
+            if (typeof turnstile !== 'undefined') {
+              try { turnstile.reset('#cf-turnstile-widget-ctfg'); } catch (e) {}
+            }
+            turnstileTokenCTFG = "";
+          } else {
+            showGeneralAlert(
+              "No se pudo enviar la solicitud",
+              (result && result.error) || "Ocurrió un problema al procesar la solicitud. Intente nuevamente.",
+              true
+            );
+            if (typeof turnstile !== 'undefined') {
+              try { turnstile.reset('#cf-turnstile-widget-ctfg'); } catch (e) {}
+            }
+            turnstileTokenCTFG = "";
+          }
+        } else {
+          showGeneralAlert(
+            "Simulación Local",
+            "Se simuló el envío de la solicitud de Constancia para Defensa de TFG (modo simulación, sin backend conectado).",
+            false
+          );
+          formCTFG.reset();
+          if (typeof turnstile !== 'undefined') {
+            try { turnstile.reset('#cf-turnstile-widget-ctfg'); } catch (e) {}
+          }
+          turnstileTokenCTFG = "";
+        }
+      } catch (err) {
+        showGeneralAlert(
+          "Error de Comunicación",
+          "Ocurrió un problema al procesar la solicitud. Intente nuevamente.",
+          true
+        );
+        if (typeof turnstile !== 'undefined') {
+          try { turnstile.reset('#cf-turnstile-widget-ctfg'); } catch (e) {}
+        }
+        turnstileTokenCTFG = "";
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = textoOriginalBtn;
+        }
+        isSubmittingCTFG = false;
+      }
+    });
+  }
 
   // --- Load Demo Data Button ---
   btnLoadDemo.addEventListener('click', () => {
@@ -2067,17 +2494,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fechaFinal').value = "2026-09-15";
     document.getElementById('descripcionActividad').value = "Determinación experimental de coeficientes de transferencia de calor y masa en columnas empacadas para el proyecto de curso.";
     document.getElementById('inicialesEstudiante').value = "MRC";
-
-    if (sigCtx) {
-      sigCtx.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
-      sigCtx.beginPath();
-      sigCtx.moveTo(50, 70);
-      sigCtx.bezierCurveTo(80, 20, 110, 110, 150, 60);
-      sigCtx.bezierCurveTo(180, 30, 210, 100, 280, 70);
-      sigCtx.stroke();
-      sigCtx.closePath();
-      studentSignatureDataUrl = canvasFirma.toDataURL();
-    }
+    if (chkConsentimientoDatos) chkConsentimientoDatos.checked = true;
 
     updateSummary();
     showGeneralAlert('Demostración Cargada', 'Datos de demostración de referencia cargados exitosamente.');
@@ -2096,7 +2513,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentRole !== 'jefatura' && targetId !== 'estudiante') {
       targetId = 'estudiante';
     }
-    navTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === targetId));
+    navTabs.forEach(t => {
+      const on = t.getAttribute('data-tab') === targetId;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+      t.setAttribute('tabindex', on ? '0' : '-1');
+    });
     tabViews.forEach(v => v.classList.toggle('active', v.id === `tab-${targetId}`));
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -2130,15 +2552,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function generateLetterHTML(current) {
     const config = LAB_CONFIGS[current.tipoLaboratorio] || LAB_CONFIGS.general;
 
+    const tokenVal = current.token || current.tokenAprobacion || current.tokenSeguridad || '';
+    const tokenParam = tokenVal ? `&token=${encodeURIComponent(tokenVal)}` : '';
     const verifUrl = (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode())
-      ? `${EIQ_CONFIG.API_BACKEND_URL}?action=verificar&id=${encodeURIComponent(current.id)}`
-      : `https://www.eiq.ucr.ac.cr/permisos/verificar?id=${encodeURIComponent(current.id)}`;
+      ? `${EIQ_CONFIG.API_BACKEND_URL}?action=verificar&id=${encodeURIComponent(current.id)}${tokenParam}`
+      : `https://www.eiq.ucr.ac.cr/permisos/verificar?id=${encodeURIComponent(current.id)}${tokenParam}`;
 
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifUrl)}&margin=1`;
 
     // Sanitizar campos del estudiante y actividad contra XSS
     const safeNombreEstudiante = escapeHtml(current.nombreEstudiante);
     const safeCarneEstudiante = escapeHtml(current.carneEstudiante);
+    const safeCorreoEstudiante = escapeHtml(current.correoEstudiante || '');
     const safeTipoActividad = escapeHtml(current.tipoActividad);
     const safeNombreCursoProyecto = escapeHtml(current.nombreCursoProyecto);
     const safeDocenteResponsable = escapeHtml(current.docenteResponsable);
@@ -2354,7 +2779,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <tr>
                 <td><strong>${escapeHtml(r.nombre)}</strong></td>
                 <td>${escapeHtml(r.cantidad || "N/A")}</td>
-                <td>${escapeHtml(r.origen || "—")}</td>
+                <td>${escapeHtml(r.origen || "—")}${r.nombreProyecto ? ' — Proyecto: ' + escapeHtml(r.nombreProyecto) : ''}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -2376,7 +2801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
           </thead>
           <tbody>
-            ${current.consumibles.map(c => `<tr><td><strong>${escapeHtml(c.nombre)}</strong></td><td>${escapeHtml(c.cantidad || "N/A")}</td><td>${escapeHtml(c.origen || "—")}</td></tr>`).join('')}
+            ${current.consumibles.map(c => `<tr><td><strong>${escapeHtml(c.nombre)}</strong></td><td>${escapeHtml(c.cantidad || "N/A")}</td><td>${escapeHtml(c.origen || "—")}${c.nombreProyecto ? ' — Proyecto: ' + escapeHtml(c.nombreProyecto) : ''}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -2399,13 +2824,10 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    // Signature 1: Estudiante
-    let sig1Preview = "";
-    if (current.signatureDataUrl) {
-      sig1Preview = `<img src="${current.signatureDataUrl}" style="max-height: 48px; max-width: 100%; object-fit: contain;">`;
-    } else {
-      sig1Preview = `<span class="sig-drawn-placeholder">Firma Electrónica [${current.inicialesEstudiante || 'EST'}]</span>`;
-    }
+    // Signature 1: Estudiante (Firma Electrónica según Ley 8454)
+    const estInitials = escapeHtml(current.inicialesEstudiante || (current.nombreEstudiante ? calcularIniciales(current.nombreEstudiante) : 'EST'));
+    const confirmacionTexto = current._fechaConfirmacion ? `, y confirmada el ${escapeHtml(current._fechaConfirmacion)} mediante el enlace enviado a su correo institucional` : '';
+    const sig1Preview = `<span class="sig-seal-approved" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;">Firma Electrónica [${estInitials}]</span>`;
 
     // Signature 2: Docente Role Title exactly per template
     let sig2Role = "Persona Docente encargada del curso";
@@ -2417,8 +2839,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const estUpperLetter = String(current.estado || "").toUpperCase();
     const esDevueltoLetter = Boolean(estUpperLetter.includes("DEVUELTO") || estUpperLetter.includes("RECHAZADO") || current.devueltoDocente);
-    const esPendienteLetter = Boolean(estUpperLetter.includes("PENDIENTE"));
-    const isDocApproved = !esDevueltoLetter && !esPendienteLetter && Boolean(
+    const esExpiradoLetter = Boolean(estUpperLetter.includes("EXPIRADO") || current.expiradoSinConfirmacion);
+    const esPendienteConfirmacionLetter = Boolean(estUpperLetter === "PENDIENTE_CONFIRMACION_ESTUDIANTE" || current.pendienteConfirmacion);
+    const esPendienteLetter = Boolean(estUpperLetter.includes("PENDIENTE") && !esPendienteConfirmacionLetter);
+    const isDocApproved = !esDevueltoLetter && !esExpiradoLetter && !esPendienteConfirmacionLetter && !esPendienteLetter && Boolean(
       current.docenteAprobado || 
       estUpperLetter === "APROBADO_DOCENTE" || 
       estUpperLetter.includes("APROBADO POR DOCENTE") || 
@@ -2530,6 +2954,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-name-line">${safeNombreEstudiante}</div>
           <div class="sig-role-line">Estudiante responsable</div>
           <div class="sig-date-line">Fecha: ${current.fechaCreacion}</div>
+          <div class="sig-legal-notice" style="font-size: 0.65rem; color: #4B5563; margin-top: 4px; line-height: 1.25; text-align: justify;">
+            Firmado electrónicamente por ${safeNombreEstudiante}, carné ${safeCarneEstudiante}, mediante declaración y envío desde la cuenta institucional ${safeCorreoEstudiante}${confirmacionTexto}. Iniciales: [${estInitials}]. Código de trámite: ${current.id}. Verificable en línea mediante el código QR (Ley 8454).
+          </div>
         </div>
 
         <div class="latex-sig-box">
@@ -2570,8 +2997,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Docente View Logic ---
   function renderDocenteView() {
-    const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
-    if (!current) return;
+    const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+      ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+      : null;
+
+    if (!current) {
+      if (docenteLetterSheet) {
+        docenteLetterSheet.innerHTML = `
+          <div style="padding: 40px 20px; text-align: center; color: var(--text-muted, #64748B);">
+            <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 8px;">No hay ningún trámite seleccionado</p>
+            <p style="font-size: 0.88rem;">Seleccione una solicitud para revisar su visto bueno docente.</p>
+          </div>
+        `;
+      }
+      return;
+    }
 
     // Render live document sheet into Tab 2
     if (docenteLetterSheet) {
@@ -2598,8 +3038,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnDocenteApprove.addEventListener('click', () => {
-    const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
-    if (!current) return;
+    const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+      ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+      : null;
+
+    if (!current) {
+      showGeneralAlert('Sin Trámite', 'No hay ningún trámite seleccionado para otorgar visto bueno.');
+      return;
+    }
 
     const initials = inputDocenteInitials.value.trim().toUpperCase();
     if (!initials) {
@@ -2621,8 +3067,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnDocenteReject.addEventListener('click', () => {
-    const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
-    if (!current) return;
+    const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+      ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+      : null;
+
+    if (!current) {
+      showGeneralAlert('Sin Trámite', 'No hay ningún trámite seleccionado para devolver.');
+      return;
+    }
 
     const motivo = textareaDocenteObs.value.trim();
     if (!motivo) {
@@ -2727,8 +3179,6 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (nomA && nomB) {
             if (nomA === nomB) {
               esMismo = true;
-            } else if (nomA.length >= 8 && nomB.length >= 8 && (nomA.includes(nomB) || nomB.includes(nomA))) {
-              esMismo = true;
             }
           }
 
@@ -2787,8 +3237,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const estUpper = String(s.estado || "").toUpperCase();
       const esDevuelto = Boolean(estUpper.includes("DEVUELTO") || estUpper.includes("RECHAZADO") || s.devueltoDocente);
-      const esPendiente = Boolean(estUpper.includes("PENDIENTE"));
-      const esAprobadoDocente = !esDevuelto && !esPendiente && Boolean(
+      const esExpirado = Boolean(estUpper.includes("EXPIRADO") || s.expiradoSinConfirmacion);
+      const esPendienteConfirmacion = Boolean(estUpper === "PENDIENTE_CONFIRMACION_ESTUDIANTE" || estUpper.includes("CONFIRMACIÓN") || s.pendienteConfirmacion);
+      const esPendiente = Boolean(estUpper.includes("PENDIENTE") && !esPendienteConfirmacion);
+      const esAprobadoDocente = !esDevuelto && !esExpirado && !esPendienteConfirmacion && !esPendiente && Boolean(
         s.docenteAprobado || 
         estUpper === "APROBADO_DOCENTE" || 
         estUpper.includes("APROBADO POR DOCENTE")
@@ -2801,6 +3253,12 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (esDevuelto) {
         statusClass = "status-rejected";
         estadoLabel = "Devuelto por Docente";
+      } else if (esExpirado) {
+        statusClass = "status-rejected";
+        estadoLabel = "Expiró sin confirmar";
+      } else if (esPendienteConfirmacion) {
+        statusClass = "status-pending";
+        estadoLabel = "Pendiente de confirmación del estudiante";
       } else if (esAprobadoDocente) {
         statusClass = "status-docente-approved";
         estadoLabel = "V.B. Docente Otorgado";
@@ -2810,7 +3268,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       let actionBtn = "";
-      if (esDevuelto) {
+      if (esDevuelto || esExpirado || esPendienteConfirmacion) {
         actionBtn = `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Ver Detalle</button>`;
       } else if (esAutorizadoJefatura) {
         actionBtn = `
@@ -2862,7 +3320,11 @@ document.addEventListener('DOMContentLoaded', () => {
     filterLab.addEventListener('change', () => {
       activeLabFilter = filterLab.value;
       const pills = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
-      pills.forEach(p => p.classList.toggle('active', p.getAttribute('data-lab') === activeLabFilter));
+      pills.forEach(p => {
+        const on = p.getAttribute('data-lab') === activeLabFilter;
+        p.classList.toggle('active', on);
+        p.setAttribute('aria-pressed', String(on));
+      });
       renderTable();
     });
   }
@@ -2874,7 +3336,11 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.addEventListener('click', () => {
         const selectedLab = pill.getAttribute('data-lab') || 'todos';
         activeLabFilter = selectedLab;
-        pillsFiltroLab.forEach(p => p.classList.toggle('active', p === pill));
+        pillsFiltroLab.forEach(p => {
+          const on = p === pill;
+          p.classList.toggle('active', on);
+          p.setAttribute('aria-pressed', String(on));
+        });
         if (filterLab) filterLab.value = selectedLab;
         renderTable();
       });
@@ -2900,7 +3366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('kpi-total').textContent = solicitudes.length;
     document.getElementById('kpi-pendientes').textContent = solicitudes.filter(s => !s.jefeAprobado).length;
     document.getElementById('kpi-aprobadas').textContent = solicitudes.filter(s => s.jefeAprobado).length;
-    document.getElementById('badge-docente-count').textContent = solicitudes.filter(s => !s.docenteAprobado).length;
+    document.getElementById('badge-docente-count').textContent = solicitudes.filter(s => !s.docenteAprobado && !s.devueltoDocente && !s.expiradoSinConfirmacion && !s.pendienteConfirmacion).length;
     document.getElementById('badge-jefatura-count').textContent = solicitudes.filter(s => s.docenteAprobado && !s.jefeAprobado).length;
     actualizarContadoresFiltrosLab();
   }
@@ -2958,7 +3424,7 @@ document.addEventListener('DOMContentLoaded', () => {
         conflictAlertContainer.innerHTML = `
           <div class="conflict-alert-card">
             <div class="conflict-alert-title">
-              Advertencia Preventiva: Solapamiento de Fechas en Equipos
+              Posibles coincidencias de equipos
             </div>
             <div class="conflict-alert-desc">
               Este expediente solicita equipos que coinciden en fechas con otros trámites activos en el sistema:
@@ -2966,7 +3432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <ul class="conflict-alert-list">
               ${conflictos.map(c => `
                 <li>
-                  <strong>${c.equipoNombre}${c.placa ? ` (Placa: ${c.placa})` : ''}</strong>: Coincide con el trámite <strong>#${c.otroId}</strong> (${c.otroEstudiante}, periodo del ${c.otroPeriodo} — <em>${c.otroEstado}</em>).
+                  <strong>${c.equipoNombre}${c.placa ? ` (Placa: ${c.placa})` : ''}</strong>: Posible coincidencia con el trámite <strong>#${c.otroId}</strong> (${c.otroEstudiante}, periodo del ${c.otroPeriodo} — <em>${c.otroEstado}</em>) (verificar disponibilidad con el personal técnico).
                 </li>
               `).join('')}
             </ul>
@@ -2983,8 +3449,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal Footer Action Buttons
     const estUpperModal = String(s.estado || "").toUpperCase();
     const esDevueltoModal = Boolean(s.devueltoDocente || estUpperModal.includes("DEVUELTO") || estUpperModal.includes("RECHAZADO"));
-    const esPendienteModal = Boolean(estUpperModal.includes("PENDIENTE"));
-    const isDocenteAprobadoModal = !esDevueltoModal && !esPendienteModal && Boolean(
+    const esExpiradoModal = Boolean(s.expiradoSinConfirmacion || estUpperModal.includes("EXPIRADO"));
+    const esPendienteConfirmacionModal = Boolean(s.pendienteConfirmacion || estUpperModal === "PENDIENTE_CONFIRMACION_ESTUDIANTE" || estUpperModal.includes("CONFIRMACIÓN"));
+    const esPendienteModal = Boolean(estUpperModal.includes("PENDIENTE") && !esPendienteConfirmacionModal);
+    const isDocenteAprobadoModal = !esDevueltoModal && !esExpiradoModal && !esPendienteConfirmacionModal && !esPendienteModal && Boolean(
       s.docenteAprobado || 
       estUpperModal === "APROBADO_DOCENTE" || 
       estUpperModal.includes("APROBADO POR DOCENTE")
@@ -2996,6 +3464,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (esDevueltoModal) {
       btnModalAutorizar.textContent = "Solicitud Devuelta por Docente";
+      btnModalAutorizar.className = "btn-secondary";
+      btnModalAutorizar.disabled = true;
+      btnModalDevolver.classList.add('hidden');
+    } else if (esExpiradoModal) {
+      btnModalAutorizar.textContent = "Expiró sin confirmar";
+      btnModalAutorizar.className = "btn-secondary";
+      btnModalAutorizar.disabled = true;
+      btnModalDevolver.classList.add('hidden');
+    } else if (esPendienteConfirmacionModal) {
+      btnModalAutorizar.textContent = "Pendiente de Confirmación Estudiante";
       btnModalAutorizar.className = "btn-secondary";
       btnModalAutorizar.disabled = true;
       btnModalDevolver.classList.add('hidden');
@@ -3180,8 +3658,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Official Final Letter Render Logic ---
   function renderOfficialLetter() {
-    const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
-    if (!current) return;
+    const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+      ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+      : null;
+
+    if (!current) {
+      if (officialDocumentSheet) {
+        officialDocumentSheet.innerHTML = `
+          <div style="padding: 40px 20px; text-align: center; color: var(--text-muted, #64748B);">
+            <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 8px;">No hay ningún trámite seleccionado</p>
+            <p style="font-size: 0.88rem;">Seleccione una solicitud desde el panel de Jefatura o Histórico para previsualizar su carta oficial.</p>
+          </div>
+        `;
+      }
+      return;
+    }
 
     if (officialDocumentSheet) {
       officialDocumentSheet.innerHTML = generateLetterHTML(current);
@@ -3217,7 +3708,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Print & PDF Download Actions ---
   if (btnDownloadPdf) {
     btnDownloadPdf.addEventListener('click', () => {
-      const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
+      const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+        ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+        : null;
+
+      if (!current) {
+        showGeneralAlert('Sin Trámite', 'No hay ningún trámite seleccionado para descargar en PDF.');
+        return;
+      }
+
       const baseName = getLetterFileName(current);
       const fileName = baseName + '.pdf';
       const element = document.getElementById('official-document');
@@ -3254,7 +3753,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnPrintLetter) {
     btnPrintLetter.addEventListener('click', () => {
-      const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
+      const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+        ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+        : null;
+
+      if (!current) {
+        showGeneralAlert('Sin Trámite', 'No hay ningún trámite seleccionado para imprimir.');
+        return;
+      }
+
       const fileName = getLetterFileName(current);
       triggerPrintWithCustomTitle(fileName);
     });
@@ -3262,7 +3769,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnEmailLetter) {
     btnEmailLetter.addEventListener('click', () => {
-      const current = solicitudes.find(s => s.id === activeTicketId) || solicitudes[0];
+      const current = (Array.isArray(solicitudes) && solicitudes.length > 0)
+        ? (solicitudes.find(s => s.id === activeTicketId) || solicitudes[0])
+        : null;
+
+      if (!current) {
+        showGeneralAlert('Sin Trámite', 'No hay ningún trámite seleccionado para despachar.');
+        return;
+      }
+
       showGeneralAlert('Copia Institucional Despachada', `Se ha preparado la copia en PDF de la Carta Oficial firmada institucionalmente para:\n${current.correoEstudiante}\n\nCon copia a la persona docente encargada:\n${current.correoDocente}`);
     });
   }
@@ -9580,7 +10095,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (labPrincipal === 'instrumental' && (!activeLabFilter || activeLabFilter === 'todos')) {
         activeLabFilter = 'instrumental';
         const pills = document.querySelectorAll('#lab-filter-pills .btn-filter-pill');
-        pills.forEach(p => p.classList.toggle('active', p.getAttribute('data-lab') === 'instrumental'));
+        pills.forEach(p => {
+          const on = p.getAttribute('data-lab') === 'instrumental';
+          p.classList.toggle('active', on);
+          p.setAttribute('aria-pressed', String(on));
+        });
         if (filterLab) filterLab.value = 'instrumental';
       }
 
@@ -9686,6 +10205,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function limpiarSesionFuncionario() {
+    const currentToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (currentToken && typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
+      try {
+        fetch(EIQ_CONFIG.API_BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'cerrar_sesion', auth_token: currentToken })
+        }).catch(() => {});
+      } catch (e) {}
+    }
     localStorage.removeItem(ROLE_STORAGE_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem('eiq_funcionario_nombre');
@@ -9755,6 +10284,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (btn) {
             btn.click();
           } else {
+            desactivarFocoModal(el);
             el.classList.add('hidden');
           }
           break;

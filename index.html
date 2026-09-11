@@ -13,9 +13,13 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 
 <body>
+
+  <!-- Skip Link to Main Content (UX8) -->
+  <a href="#main-content" class="skip-link">Saltar al contenido</a>
 
   <!-- Top Institutional Bar -->
   <header class="top-header">
@@ -44,22 +48,22 @@
   <!-- Role Switcher Navigation -->
   <nav class="role-nav" id="main-role-nav">
     <div class="nav-container">
-      <div class="tabs-wrapper">
-        <button class="nav-tab active" data-tab="estudiante">
+      <div class="tabs-wrapper" role="tablist" aria-label="Vistas del sistema">
+        <button class="nav-tab active" data-tab="estudiante" role="tab" id="navtab-estudiante" aria-controls="tab-estudiante" aria-selected="true" tabindex="0">
           <span class="tab-title">1. Solicitud Estudiante</span>
         </button>
-        <button class="nav-tab admin-only" data-tab="docente">
+        <button class="nav-tab admin-only" data-tab="docente" role="tab" id="navtab-docente" aria-controls="tab-docente" aria-selected="false" tabindex="-1">
           <span class="tab-title">2. Visto Bueno Docente</span>
           <span class="tab-pill" id="badge-docente-count">1</span>
         </button>
-        <button class="nav-tab admin-only" data-tab="jefatura">
+        <button class="nav-tab admin-only" data-tab="jefatura" role="tab" id="navtab-jefatura" aria-controls="tab-jefatura" aria-selected="false" tabindex="-1">
           <span class="tab-title">3. Panel Jefatura / Laboratorios</span>
           <span class="tab-pill" id="badge-jefatura-count">1</span>
         </button>
-        <button class="nav-tab admin-only" data-tab="historico">
+        <button class="nav-tab admin-only" data-tab="historico" role="tab" id="navtab-historico" aria-controls="tab-historico" aria-selected="false" tabindex="-1">
           <span class="tab-title">4. Registros Históricos</span>
         </button>
-        <button class="nav-tab admin-only" data-tab="carta">
+        <button class="nav-tab admin-only" data-tab="carta" role="tab" id="navtab-carta" aria-controls="tab-carta" aria-selected="false" tabindex="-1">
           <span class="tab-title">5. Carta Oficial Emitida</span>
         </button>
       </div>
@@ -67,19 +71,19 @@
   </nav>
 
   <!-- Main Content Container -->
-  <main class="main-content">
+  <main class="main-content" id="main-content">
 
     <!-- ========================================================================= -->
     <!-- TAB 1: FORMULARIO DEL ESTUDIANTE -->
     <!-- ========================================================================= -->
-    <section id="tab-estudiante" class="tab-view active">
+    <section id="tab-estudiante" class="tab-view active" role="tabpanel" aria-labelledby="navtab-estudiante" tabindex="0">
       <div class="view-header">
         <div class="view-title-group">
           <h2>Solicitud Oficial de Permiso de Laboratorio</h2>
           <p>Complete los datos requeridos. El formulario adapta dinámicamente los tipos de actividad, compromisos y
             formatos según el laboratorio de destino seleccionado.</p>
         </div>
-        <div class="progress-stepper">
+        <div class="progress-stepper" aria-label="Progreso del formulario">
           <div class="step-item active" data-step="1"><span>1</span> Destino y Solicitante</div>
           <div class="step-line"></div>
           <div class="step-item" data-step="2"><span>2</span> Actividad y Docente</div>
@@ -88,11 +92,35 @@
           <div class="step-line"></div>
           <div class="step-item" data-step="4"><span>4</span> Compromisos y Firma</div>
         </div>
+        <p id="step-live-region" class="visually-hidden" aria-live="polite"></p>
       </div>
 
-      <div class="form-layout">
-        <!-- Main Interactive Form -->
-        <form id="form-solicitud" class="form-card" novalidate>
+      <fieldset class="form-group" id="selector-tipo-tramite" style="border:0; padding:0; margin:0 0 1.25rem 0; min-width:0;">
+        <legend class="form-label" style="padding:0;">¿Qué desea tramitar? <span class="required">*</span></legend>
+        <div class="radio-cards">
+          <label class="radio-card">
+            <input type="radio" name="tipoTramitePortal" value="permiso" checked>
+            <div class="card-content">
+              <span class="card-title">Permiso de Laboratorio</span>
+              <span class="card-desc">Solicitud de acceso y uso de laboratorio con visto bueno docente.</span>
+            </div>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="tipoTramitePortal" value="constancia_tfg">
+            <div class="card-content">
+              <span class="card-title">Constancia para Defensa de TFG</span>
+              <span class="card-desc">Trámite que certifica la ausencia de deudas de materiales o equipos.</span>
+            </div>
+          </label>
+        </div>
+      </fieldset>
+      <p id="tramite-live-region" class="visually-hidden" aria-live="polite"></p>
+
+      <div id="wrapper-permiso">
+        <div class="form-layout">
+          <!-- Main Interactive Form -->
+          <form id="form-solicitud" class="form-card" novalidate>
+          <p id="form-error-live" class="visually-hidden" aria-live="assertive"></p>
 
           <!-- Step 1: Tipo de Laboratorio y Datos Personales -->
           <div class="form-step active" id="step-1">
@@ -129,8 +157,8 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Laboratorio Destino <span class="required">*</span></label>
+            <fieldset class="form-group" style="border:0; padding:0; margin:0; min-width:0;">
+              <legend class="form-label" style="padding:0;">Laboratorio Destino <span class="required">*</span></legend>
               <div class="radio-cards">
                 <label class="radio-card">
                   <input type="radio" name="tipoLaboratorio" value="general" checked>
@@ -155,13 +183,13 @@
                   </div>
                 </label>
               </div>
-            </div>
+            </fieldset>
 
             <div class="form-grid-2">
               <div class="form-group">
                 <label class="form-label" for="nombreEstudiante">Nombre Completo <span class="required">*</span></label>
                 <input type="text" id="nombreEstudiante" name="nombreEstudiante" class="form-control"
-                  placeholder="Ej. Mariana Rojas Castillo" required>
+                  placeholder="Ej. Mariana Rojas Castillo" autocomplete="name" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="carneEstudiante">Número de Carné <span class="required">*</span></label>
@@ -174,7 +202,7 @@
               <label class="form-label" for="correoEstudiante">Correo Institucional <span
                   class="required">*</span></label>
               <input type="email" id="correoEstudiante" name="correoEstudiante" class="form-control"
-                placeholder="mariana.rojas@ucr.ac.cr" required>
+                placeholder="mariana.rojas@ucr.ac.cr" autocomplete="email" required>
             </div>
 
             <!-- Integrantes adicionales del grupo (para Lab General) -->
@@ -182,7 +210,8 @@
               <div class="section-header-inline">
                 <div>
                   <label class="form-label font-bold mb-0">Otros Integrantes del Grupo (Opcional)</label>
-                  <small class="text-muted">Si la práctica se realiza en grupo, agregue a los demás miembros.</small>
+                  <small class="text-muted" style="display: block;">Si la práctica se realiza en grupo, agregue a los demás miembros.</small>
+                  <small class="text-muted" style="display: block; margin-top: 0.25rem;">Al agregar integrantes, usted declara contar con la autorización de cada persona para incluir su nombre completo y número de carné en este trámite.</small>
                 </div>
                 <button type="button" id="btn-add-integrante" class="btn-text-action">+ Añadir Integrante</button>
               </div>
@@ -342,6 +371,9 @@
               <div id="equipos-container" class="dynamic-rows">
                 <!-- Dynamically populated via app.js -->
               </div>
+              <p id="nota-muestras-instrumental" class="text-muted hidden" style="font-size:0.82rem; margin-top:0.35rem;">
+                Si necesita equipo para preparar muestras (pesar, disolver, filtrar), tramítelo por medio del Laboratorio General.
+              </p>
             </div>
 
             <!-- Reactivos -->
@@ -374,6 +406,9 @@
               <div id="reactivos-container" class="dynamic-rows">
                 <!-- Dynamically populated via app.js -->
               </div>
+              <p id="nota-cristaleria-cotrafin" class="text-muted hidden" style="font-size:0.82rem; margin-top:0.35rem;">
+                Nota: no incluya cristalería en el detalle de reactivos y equipos.
+              </p>
             </div>
 
             <!-- Consumibles Section (Only for Instrumental) -->
@@ -425,36 +460,47 @@
 
             <div class="callout-box">
               <div class="callout-text">
-                Al firmar esta solicitud, la persona estudiante asume formalmente los siguientes compromisos y
-                lineamientos de seguridad institucionales (de cumplimiento obligatorio):
+                Al registrar esta solicitud, la persona estudiante asume formalmente los siguientes compromisos y
+                lineamientos de seguridad institucionales. Marque cada casilla para confirmar su aceptación; todas son
+                obligatorias para enviar la solicitud. La firma electrónica se realiza mediante las iniciales de la
+                persona solicitante y la presente declaración, quedando respaldada por la trazabilidad del envío desde su
+                cuenta de correo institucional (Ley 8454).
               </div>
             </div>
 
-            <!-- Dynamic Commitments List based on reference docs (Irremovable / Locked) -->
+            <!-- Dynamic Commitments List - each item must be checked to submit -->
             <div class="checkbox-list" id="commitments-container">
               <!-- Dynamically populated according to selected Lab -->
             </div>
 
-            <!-- Signature Pad & Initials Component -->
+            <!-- Bloque Institucional: Tratamiento de Datos Personales (P6) -->
+            <div id="box-tratamiento-datos" class="callout-box mb-4" style="flex-direction: column; gap: 0.5rem;">
+              <div class="callout-text">
+                <strong style="font-size: 0.95rem; color: var(--ucr-blue-dark); display: block; margin-bottom: 0.5rem;">Tratamiento de datos personales</strong>
+                <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Al enviar esta solicitud, la Escuela de Ingeniería Química de la Universidad de Costa Rica registra sus datos (nombre, número de carné, correo institucional, actividad académica y recursos solicitados) con la única finalidad de gestionar, autorizar y dejar constancia de su permiso de acceso al laboratorio.</p>
+                <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Estos datos se almacenan en los sistemas institucionales y se comparten con la persona docente responsable, la jefatura o coordinación del laboratorio y el personal técnico encargado de preparar los recursos. El registro de la solicitud y el envío de los correos se realizan mediante servicios de Google (Google Workspace) bajo una cuenta institucional dedicada de la Escuela de Ingeniería Química. Los datos se conservan durante el plazo que establecen la normativa de gestión documental de la UCR y los requisitos de acreditación.</p>
+                <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Si incluye a otras personas integrantes de su grupo de trabajo, usted declara contar con su autorización para aportar sus datos en este trámite.</p>
+                <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Para consultar, corregir o solicitar la eliminación de sus datos, escriba a <a href="mailto:laboratorio.eiq@ucr.ac.cr" style="color: var(--ucr-blue-primary); text-decoration: underline;">laboratorio.eiq@ucr.ac.cr</a>. El tratamiento se rige por la Ley N° 8968; la validez de los documentos electrónicos emitidos se rige por la Ley N° 8454.</p>
+              </div>
+              <div class="consentimiento-checkbox-container" style="border-top: 1px solid rgba(0, 43, 73, 0.12); padding-top: 0.75rem; margin-top: 0.25rem;">
+                <label id="lbl-consentimiento-datos" style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; color: var(--ucr-blue-dark); cursor: pointer;">
+                  <input type="checkbox" id="chk-consentimiento-datos" name="consentimientoDatos" style="margin-top: 0.15rem;">
+                  <span>He leído y acepto el tratamiento de mis datos personales según lo indicado. <span class="required">*</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Signature & Initials Component -->
             <div class="signature-section-card">
               <h4 class="signature-heading">Firma Electrónica del Estudiante Solicitante</h4>
 
-              <div class="sig-grid">
-                <div class="sig-canvas-box">
-                  <div class="sig-canvas-header">
-                    <span class="label">Trace su firma (con dedo, lápiz digital o mouse):</span>
-                    <button type="button" id="btn-clear-sig" class="btn-text-xs">Borrar trazo</button>
-                  </div>
-                  <canvas id="canvas-firma-estudiante" width="380" height="130" class="signature-canvas" style="max-width: 100%; touch-action: none;"></canvas>
-                  <span class="canvas-hint">Área para trazado de firma manuscrita</span>
-                </div>
-
-                <div class="sig-initials-box">
+              <div class="sig-grid" style="grid-template-columns: 1fr; max-width: 480px; margin: 0 auto;">
+                <div class="sig-initials-box" style="text-align: center;">
                   <label class="form-label" for="inicialesEstudiante">Iniciales del Estudiante <span
                       class="required">*</span></label>
                   <input type="text" id="inicialesEstudiante" name="inicialesEstudiante"
-                    class="form-control form-control-initials" placeholder="Ej. JPR" maxlength="6" required>
-                  <small class="form-text-hint">Iniciales formales que validan la declaración electrónica.</small>
+                    class="form-control form-control-initials" placeholder="Ej. JPR" maxlength="6" required style="margin: 0 auto; text-align: center;">
+                  <small class="form-text-hint" style="display: block; margin-top: 6px;">Iniciales formales que validan la declaración electrónica y el envío institucional.</small>
 
                   <div class="mt-3">
                     <span class="sig-meta-preview">Trámite ID: <strong
@@ -463,6 +509,10 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div id="turnstile-container" class="mb-3" aria-live="polite">
+              <div id="cf-turnstile-widget"></div>
             </div>
 
             <div class="step-buttons">
@@ -528,12 +578,67 @@
           </div>
         </aside>
       </div>
-    </section>
+    </div>
+
+    <div class="form-layout" id="wrapper-constancia-tfg" hidden>
+      <form id="form-constancia-tfg" class="form-card" novalidate>
+        <h3 class="step-header">Constancia para Defensa de TFG</h3>
+        <p class="text-muted" style="margin-bottom: 1.25rem;">
+          Trámite que certifica la ausencia de deudas de materiales o equipos. Complete sus datos;
+          recibirá un enlace de confirmación en su correo institucional.
+        </p>
+        <p id="form-error-live-ctfg" class="visually-hidden" aria-live="assertive"></p>
+
+        <div class="form-group">
+          <label class="form-label" for="ctfgNombreEstudiante">Nombre Completo <span class="required">*</span></label>
+          <input type="text" id="ctfgNombreEstudiante" name="nombreEstudiante" class="form-control"
+            placeholder="Ej. Mariana Rojas Castillo" required maxlength="250" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ctfgCarneEstudiante">Carné <span class="required">*</span></label>
+          <input type="text" id="ctfgCarneEstudiante" name="carneEstudiante" class="form-control"
+            placeholder="Ej. B12345" required maxlength="50" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ctfgCorreoEstudiante">Correo Institucional <span class="required">*</span></label>
+          <input type="email" id="ctfgCorreoEstudiante" name="correoEstudiante" class="form-control"
+            placeholder="nombre.apellido@ucr.ac.cr" required autocomplete="email">
+          <small class="form-text-hint">Debe ser una cuenta @ucr.ac.cr; ahí recibirá el enlace de confirmación.</small>
+        </div>
+
+        <div id="box-tratamiento-datos-ctfg" class="callout-box mb-4" style="flex-direction: column; gap: 0.5rem;">
+          <div class="callout-text">
+            <strong style="font-size: 0.95rem; color: var(--ucr-blue-dark); display: block; margin-bottom: 0.5rem;">Tratamiento de datos personales</strong>
+            <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Al enviar esta solicitud, la Escuela de Ingeniería Química de la Universidad de Costa Rica registra sus datos (nombre completo, número de carné y correo institucional) con la única finalidad de gestionar y dejar constancia de su trámite de Constancia para Defensa de TFG.</p>
+            <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Estos datos se comparten con las personas técnicas del Laboratorio General encargadas de revisar las bitácoras, y con la Oficina de Asuntos Estudiantiles de la Escuela, destinataria del resultado del trámite. El registro de la solicitud y el envío de los correos se realizan mediante servicios de Google (Google Workspace) bajo una cuenta institucional dedicada de la Escuela de Ingeniería Química. Los datos se conservan durante el plazo que establecen la normativa de gestión documental de la UCR y los requisitos de acreditación.</p>
+            <p style="margin: 0 0 0.5rem 0; line-height: 1.5; text-align: justify;">Para consultar, corregir o solicitar la eliminación de sus datos, escriba a <a href="mailto:laboratorio.eiq@ucr.ac.cr" style="color: var(--ucr-blue-primary); text-decoration: underline;">laboratorio.eiq@ucr.ac.cr</a>. El tratamiento se rige por la Ley N° 8968; la validez de los documentos electrónicos emitidos se rige por la Ley N° 8454.</p>
+          </div>
+          <div class="consentimiento-checkbox-container" style="border-top: 1px solid rgba(0, 43, 73, 0.12); padding-top: 0.75rem; margin-top: 0.25rem;">
+            <label id="lbl-consentimiento-datos-ctfg" style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.88rem; font-weight: 600; color: var(--ucr-blue-dark); cursor: pointer;">
+              <input type="checkbox" id="chk-consentimiento-datos-ctfg" name="consentimientoDatosCTFG" style="margin-top: 0.15rem;">
+              <span>He leído y acepto el tratamiento de mis datos personales según lo indicado. <span class="required">*</span></span>
+            </label>
+          </div>
+        </div>
+
+        <div id="turnstile-container-ctfg" class="mb-3" aria-live="polite">
+          <div id="cf-turnstile-widget-ctfg"></div>
+        </div>
+
+        <div class="step-buttons">
+          <div></div>
+          <button type="submit" id="btn-submit-constancia-tfg" class="btn-success btn-lg">
+            Enviar Solicitud de Constancia
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
 
     <!-- ========================================================================= -->
     <!-- TAB 2: VISTO BUENO DOCENTE (FORMATO CARTA OFICIAL EN VIVO) -->
     <!-- ========================================================================= -->
-    <section id="tab-docente" class="tab-view">
+    <section id="tab-docente" class="tab-view" role="tabpanel" aria-labelledby="navtab-docente" tabindex="0">
       <div class="view-header">
         <div class="view-title-group">
           <h2>Visto Bueno Docente — Revisión de Carta Oficial de Solicitud</h2>
@@ -595,7 +700,7 @@
     <!-- ========================================================================= -->
     <!-- TAB 3: PANEL DE CONTROL DE JEFATURA Y COORDINACIÓN -->
     <!-- ========================================================================= -->
-    <section id="tab-jefatura" class="tab-view">
+    <section id="tab-jefatura" class="tab-view" role="tabpanel" aria-labelledby="navtab-jefatura" tabindex="0">
       <div class="view-header">
         <div class="view-title-group">
           <h2>Panel de Control — Jefatura y Coordinación de Laboratorios EIQ</h2>
@@ -669,24 +774,24 @@
             <small class="text-muted">Revise, autorice o devuelva las solicitudes de acceso a laboratorios EIQ.</small>
           </div>
           <div class="table-filters-wrapper">
-            <div class="lab-filter-pills" id="lab-filter-pills" role="tablist" aria-label="Filtro de solicitudes por laboratorio">
-              <button type="button" class="btn-filter-pill active" data-lab="todos">
+            <div class="lab-filter-pills" id="lab-filter-pills" role="group" aria-label="Filtro de solicitudes por laboratorio">
+              <button type="button" class="btn-filter-pill active" data-lab="todos" aria-pressed="true">
                 Todos <span class="pill-count" id="count-filter-todos">0</span>
               </button>
-              <button type="button" class="btn-filter-pill" data-lab="general">
+              <button type="button" class="btn-filter-pill" data-lab="general" aria-pressed="false">
                 General <span class="pill-count" id="count-filter-general">0</span>
               </button>
-              <button type="button" class="btn-filter-pill" data-lab="instrumental">
+              <button type="button" class="btn-filter-pill" data-lab="instrumental" aria-pressed="false">
                 Instrumental <span class="pill-count" id="count-filter-instrumental">0</span>
               </button>
-              <button type="button" class="btn-filter-pill" data-lab="cotrafin">
+              <button type="button" class="btn-filter-pill" data-lab="cotrafin" aria-pressed="false">
                 COTRAFIN <span class="pill-count" id="count-filter-cotrafin">0</span>
               </button>
             </div>
             <div class="table-filters">
               <input type="text" id="filter-search" class="form-control form-control-sm"
                 placeholder="Buscar por estudiante, carné o trámite..." aria-label="Buscar trámites por estudiante, carné o código">
-              <select id="filter-lab" class="form-control form-control-sm visually-hidden" aria-label="Selector de laboratorio">
+              <select id="filter-lab" class="form-control form-control-sm" hidden tabindex="-1" aria-label="Selector de laboratorio">
                 <option value="todos">Todos los Laboratorios</option>
                 <option value="general">Laboratorio General</option>
                 <option value="instrumental">Laboratorio Instrumental</option>
@@ -701,15 +806,16 @@
 
         <div class="table-responsive">
           <table class="data-table">
+            <caption class="visually-hidden">Solicitudes de permiso de laboratorio para revisión de jefatura</caption>
             <thead>
               <tr>
-                <th>Código Trámite</th>
-                <th>Estudiante</th>
-                <th>Laboratorio</th>
-                <th>Docente Responsable</th>
-                <th>Periodo</th>
-                <th>Estado</th>
-                <th>Acción</th>
+                <th scope="col">Código Trámite</th>
+                <th scope="col">Estudiante</th>
+                <th scope="col">Laboratorio</th>
+                <th scope="col">Docente Responsable</th>
+                <th scope="col">Periodo</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Acción</th>
               </tr>
             </thead>
             <tbody id="solicitudes-table-body">
@@ -723,7 +829,7 @@
     <!-- ========================================================================= -->
     <!-- TAB 4: REGISTROS HISTÓRICOS Y DEMANDA DE RECURSOS -->
     <!-- ========================================================================= -->
-    <section id="tab-historico" class="tab-view">
+    <section id="tab-historico" class="tab-view" role="tabpanel" aria-labelledby="navtab-historico" tabindex="0">
       <div class="view-header">
         <div class="view-title-group">
           <h2>Registros Históricos y Demanda de Recursos</h2>
@@ -843,14 +949,15 @@
           </div>
           <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
             <table class="data-table" style="font-size: 0.82rem;">
+              <caption class="visually-hidden">Registro histórico de reactivos solicitados</caption>
               <thead>
                 <tr>
-                  <th style="width: 10%;">ID Log</th>
-                  <th style="width: 12%;">Fecha / Año</th>
-                  <th style="width: 22%;">Solicitante</th>
-                  <th style="width: 12%;">Laboratorio</th>
-                  <th style="width: 26%;">Reactivo y Pureza</th>
-                  <th style="width: 18%;">Cantidad Registrada</th>
+                  <th scope="col" style="width: 10%;">ID Log</th>
+                  <th scope="col" style="width: 12%;">Fecha / Año</th>
+                  <th scope="col" style="width: 22%;">Solicitante</th>
+                  <th scope="col" style="width: 12%;">Laboratorio</th>
+                  <th scope="col" style="width: 26%;">Reactivo y Pureza</th>
+                  <th scope="col" style="width: 18%;">Cantidad Registrada</th>
                 </tr>
               </thead>
               <tbody id="reagent-ledger-tbody">
@@ -865,7 +972,7 @@
     <!-- ========================================================================= -->
     <!-- TAB 5: VISOR DE CARTA OFICIAL EMITIDA (PDF/LATEX-STYLE PREVIEW) -->
     <!-- ========================================================================= -->
-    <section id="tab-carta" class="tab-view">
+    <section id="tab-carta" class="tab-view" role="tabpanel" aria-labelledby="navtab-carta" tabindex="0">
       <div class="view-header">
         <div class="view-title-group">
           <h2>Carta Oficial Emitida (Estructura Institucional EIQ)</h2>
@@ -944,11 +1051,12 @@
           <div class="doc-tables-section">
             <h4 class="doc-section-heading">Equipos de Laboratorio e Instrumentación Solicitados:</h4>
             <table class="latex-table" id="doc-carta-equipos-table">
+              <caption class="visually-hidden">Equipos solicitados</caption>
               <thead>
                 <tr>
-                  <th style="width: 60%;">Equipo</th>
-                  <th style="width: 25%;">Cantidad análisis / Placa</th>
-                  <th style="width: 15%;">Capacitación</th>
+                  <th scope="col" style="width: 60%;">Equipo</th>
+                  <th scope="col" style="width: 25%;">Cantidad análisis / Placa</th>
+                  <th scope="col" style="width: 15%;">Capacitación</th>
                 </tr>
               </thead>
               <tbody>
@@ -966,11 +1074,12 @@
               es responsable de realizar los cálculos de preparación.
             </div>
             <table class="latex-table" id="doc-carta-reactivos-table">
+              <caption class="visually-hidden">Reactivos solicitados</caption>
               <thead>
                 <tr>
-                  <th style="width: 50%;">Reactivo (Pureza)</th>
-                  <th style="width: 20%;">Cantidad</th>
-                  <th style="width: 30%;">Origen del Suministro</th>
+                  <th scope="col" style="width: 50%;">Reactivo (Pureza)</th>
+                  <th scope="col" style="width: 20%;">Cantidad</th>
+                  <th scope="col" style="width: 30%;">Origen del Suministro</th>
                 </tr>
               </thead>
               <tbody>
@@ -1034,7 +1143,7 @@
 
           <!-- Verification Stamp Footer with QR -->
           <div class="latex-footer-verification">
-            <div class="qr-canvas-box">
+            <div class="qr-canvas-box" role="img" aria-label="Código QR de verificación de autenticidad de la carta">
               <div class="qr-visual">
                 <span>QR OFICIAL</span>
                 <small>VERIFICADO</small>
@@ -1131,13 +1240,13 @@
             <div class="feedback-info-item">
               <div>
                 <strong>Docente responsable:</strong> <span id="feedback-docente-nombre">—</span> (<span id="feedback-docente-correo">—</span>)
-                <div class="feedback-info-subtext">Se ha enviado notificación automática con enlace de Visto Bueno en 1 Clic.</div>
+                <div class="feedback-info-subtext" id="feedback-docente-subtext">La persona docente recibirá la notificación únicamente después de que usted confirme el envío desde su correo institucional.</div>
               </div>
             </div>
             <div class="feedback-info-item">
               <div>
                 <strong>Estudiante solicitante:</strong> <span id="feedback-estudiante-correo">—</span>
-                <div class="feedback-info-subtext">Se despachó acuse de recibo institucional a su cuenta de correo.</div>
+                <div class="feedback-info-subtext" id="feedback-estudiante-subtext">Solicitud registrada. Revisá tu correo institucional (@ucr.ac.cr) y hacé clic en el enlace para enviarla a tu docente. Hasta entonces, tu docente no recibe nada.</div>
               </div>
             </div>
           </div>
@@ -1151,8 +1260,13 @@
               <strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).
             </p>
             <p class="feedback-reassurance-text">
-              No es necesario enviar una nueva solicitud de inmediato. Si al cabo de unos minutos no recibe el correo de confirmación, puede intentar enviar la solicitud de nuevo. Si el problema persiste, comuníquese directamente con la Jefatura de Laboratorios al correo: <a href="mailto:laboratorio.eiq@ucr.ac.cr" class="feedback-link">laboratorio.eiq@ucr.ac.cr</a>.
+              No es necesario enviar una nueva solicitud de inmediato. Si al cabo de unos minutos no recibe el correo de confirmación, puede solicitar el reenvío a continuación. Si el problema persiste, comuníquese directamente con la Jefatura de Laboratorios al correo: <a href="mailto:laboratorio.eiq@ucr.ac.cr" class="feedback-link">laboratorio.eiq@ucr.ac.cr</a>.
             </p>
+            <div style="margin-top: 10px; text-align: right;">
+              <button type="button" id="btn-feedback-reenviar" class="feedback-link" style="background: none; border: none; font-size: 13px; text-decoration: underline; cursor: pointer; color: #004C87; font-weight: 600; padding: 0;">
+                No me llegó el correo — reenviar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1283,8 +1397,8 @@
     </div>
   </div>
 
-  <!-- Generador de PDF en cliente (Descarga directa sin diálogos de impresión) con SRI -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWQV46GjQ47TRqdSWPhMhC263GFCX4UkRGIpen4279q8PX++AGN2OU65Lk2Q4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Generador de PDF en cliente (Autoalojado localmente en vendor/ para mitigación de cadena de suministro S8) -->
+  <script src="vendor/html2pdf.bundle.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
