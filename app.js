@@ -2830,7 +2830,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    // Signature 1: Estudiante (Firma Electrónica según Ley 8454)
+    // Signature 1: Estudiante (Firma Electrónica)
     const estInitials = escapeHtml(current.inicialesEstudiante || (current.nombreEstudiante ? calcularIniciales(current.nombreEstudiante) : 'EST'));
     const confirmacionTexto = current._fechaConfirmacion ? `, y confirmada el ${escapeHtml(current._fechaConfirmacion)} mediante el enlace enviado a su correo institucional` : '';
     const sig1Preview = `<span class="sig-seal-approved" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;">Firma Electrónica [${estInitials}]</span>`;
@@ -2961,7 +2961,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-role-line">Estudiante responsable</div>
           <div class="sig-date-line">Fecha: ${current.fechaCreacion}</div>
           <div class="sig-legal-notice" style="font-size: 0.65rem; color: #4B5563; margin-top: 4px; line-height: 1.25; text-align: justify;">
-            Firmado electrónicamente por ${safeNombreEstudiante}, carné ${safeCarneEstudiante}, mediante declaración y envío desde la cuenta institucional ${safeCorreoEstudiante}${confirmacionTexto}. Iniciales: [${estInitials}]. Código de trámite: ${current.id}. Verificable en línea mediante el código QR (Ley 8454).
+            Firmado electrónicamente por ${safeNombreEstudiante}, carné ${safeCarneEstudiante}, mediante declaración y envío desde la cuenta institucional ${safeCorreoEstudiante}${confirmacionTexto}. Iniciales: [${estInitials}]. Código de trámite: ${current.id}. Verificable en línea mediante el código QR.
           </div>
         </div>
 
