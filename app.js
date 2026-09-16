@@ -1782,6 +1782,12 @@ document.addEventListener('DOMContentLoaded', () => {
       step.classList.toggle('active', idx + 1 === stepNumber);
     });
 
+    // Ocultar el selector de tipo de tramite una vez que la persona avanza mas alla del
+    // Paso 1 del permiso, para que no pueda desviarse accidentalmente a Constancia de TFG
+    // y perder el progreso ya ingresado. Vuelve a mostrarse si regresa al Paso 1.
+    const selectorTramite = document.getElementById('selector-tipo-tramite');
+    if (selectorTramite) selectorTramite.hidden = (stepNumber !== 1);
+
     stepItems.forEach((item, idx) => {
       item.classList.remove('active', 'completed');
       if (idx + 1 === stepNumber) {
