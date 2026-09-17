@@ -10488,13 +10488,16 @@ document.addEventListener('DOMContentLoaded', () => {
     linkAdminLogin.addEventListener('click', (e) => {
       e.preventDefault();
       const currentRole = localStorage.getItem(ROLE_STORAGE_KEY);
-      if (currentRole === 'jefatura') {
+      if (currentRole === 'jefatura' || currentRole === 'asuntosestudiantiles') {
+        const esAE = (currentRole === 'asuntosestudiantiles');
         limpiarSesionFuncionario();
         applyRoleVisibility('estudiante');
         if (window.history.replaceState) {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
-        showGeneralAlert("Sesión Finalizada", "Ha cerrado la sesión administrativa de Jefatura.");
+        showGeneralAlert("Sesión Finalizada", esAE
+          ? "Ha cerrado la sesión de Asuntos Estudiantiles."
+          : "Ha cerrado la sesión administrativa de Jefatura.");
       } else {
         openAdminPinModal();
       }
