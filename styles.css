@@ -1280,6 +1280,11 @@ body {
   color: #065F46;
   border-color: #6EE7B7;
 }
+.badge-pill.status-superseded {
+  background: #F1F5F9;
+  color: #475569;
+  border-color: #CBD5E1;
+}
 
 /* --------------------------------------------------------------------------
    17.1 REGISTRO HISTÓRICO DE EQUIPOS (Segmentación Dinámica & Semáforo)

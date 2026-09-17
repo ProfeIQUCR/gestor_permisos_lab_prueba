@@ -3304,6 +3304,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (solicitud.tipoLaboratorio === 'cotrafin') {
       return [];
     }
+    // Laboratorio General: la distribución de los recursos es responsabilidad del personal
+    // técnico, no algo que Jefatura deba monitorear preventivamente en el panel. Decisión del
+    // propietario, 17/09/2026. (Instrumental conserva la advertencia).
+    if (solicitud.tipoLaboratorio === 'general') {
+      return [];
+    }
     if (!solicitud.fechaInicio || !solicitud.fechaFinal) {
       return [];
     }
@@ -3477,18 +3483,22 @@ document.addEventListener('DOMContentLoaded', () => {
       let estadoLabel = s.estado;
 
       const estUpper = String(s.estado || "").toUpperCase();
+      const esSuperado = Boolean(estUpper.includes("SUPERADO"));
       const esDevuelto = Boolean(estUpper.includes("DEVUELTO") || estUpper.includes("RECHAZADO") || s.devueltoDocente);
       const esExpirado = Boolean(estUpper.includes("EXPIRADO") || s.expiradoSinConfirmacion);
       const esPendienteConfirmacion = Boolean(estUpper === "PENDIENTE_CONFIRMACION_ESTUDIANTE" || estUpper.includes("CONFIRMACIÓN") || s.pendienteConfirmacion);
       const esPendiente = Boolean(estUpper.includes("PENDIENTE") && !esPendienteConfirmacion);
       const esAprobadoDocente = !esDevuelto && !esExpirado && !esPendienteConfirmacion && !esPendiente && Boolean(
-        s.docenteAprobado || 
-        estUpper === "APROBADO_DOCENTE" || 
+        s.docenteAprobado ||
+        estUpper === "APROBADO_DOCENTE" ||
         estUpper.includes("APROBADO POR DOCENTE")
       );
       const esAutorizadoJefatura = Boolean(estUpper.includes("AUTORIZADO") || s.jefeAprobado);
 
-      if (esAutorizadoJefatura) {
+      if (esSuperado) {
+        statusClass = "status-superseded";
+        estadoLabel = "Superado por Corrección";
+      } else if (esAutorizadoJefatura) {
         statusClass = "status-authorized";
         estadoLabel = "Autorizado por Jefatura";
       } else if (esDevuelto) {
@@ -3509,7 +3519,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       let actionBtn = "";
-      if (esDevuelto || esExpirado || esPendienteConfirmacion) {
+      if (esSuperado) {
+        actionBtn = s.superadoPor
+          ? `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.superadoPor}')">Ver Trámite Actual (#${escapeHtml(s.superadoPor)})</button>`
+          : `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Ver Detalle</button>`;
+      } else if (esDevuelto || esExpirado || esPendienteConfirmacion) {
         actionBtn = `<button class="btn-secondary btn-sm" onclick="revisarSolicitudJefatura('${s.id}')">Ver Detalle</button>`;
       } else if (esAutorizadoJefatura) {
         actionBtn = `
