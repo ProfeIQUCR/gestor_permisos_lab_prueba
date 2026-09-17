@@ -3298,6 +3298,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!solicitud || solicitud.sinEquipos || !Array.isArray(solicitud.equipos) || solicitud.equipos.length === 0) {
       return [];
     }
+    // COTRAFIN es una solicitud de factibilidad (no reserva real de equipos/fechas); el
+    // solapamiento, si existe, se dictamina más adelante cuando la persona estudiante
+    // envíe la solicitud real de uso del laboratorio. Decisión del propietario, 17/09/2026.
+    if (solicitud.tipoLaboratorio === 'cotrafin') {
+      return [];
+    }
     if (!solicitud.fechaInicio || !solicitud.fechaFinal) {
       return [];
     }
