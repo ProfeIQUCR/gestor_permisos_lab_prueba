@@ -66,6 +66,9 @@
         <button class="nav-tab admin-only" data-tab="carta" role="tab" id="navtab-carta" aria-controls="tab-carta" aria-selected="false" tabindex="-1">
           <span class="tab-title">5. Carta Oficial Emitida</span>
         </button>
+        <button class="nav-tab admin-only-ae" data-tab="asuntos-estudiantiles" role="tab" id="navtab-asuntos-estudiantiles" aria-controls="tab-asuntos-estudiantiles" aria-selected="false" tabindex="-1">
+          <span class="tab-title">Constancias TFG</span>
+        </button>
       </div>
     </div>
   </nav>
@@ -145,10 +148,10 @@
               </div>
               <div class="subsanacion-active-body">
                 <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #1E293B;">
-                  Se han restaurado los datos del trámite devuelto <strong id="subsanacion-active-id">—</strong>.
+                  Se han restaurado los datos del trámite <strong id="subsanacion-active-id">—</strong>.
                 </p>
                 <div class="subsanacion-motivo-box">
-                  <strong>Observaciones recibidas para corrección:</strong>
+                  <strong id="subsanacion-motivo-label">Observaciones recibidas para corrección:</strong>
                   <div id="subsanacion-active-motivo" style="margin-top: 0.25rem; font-style: italic; color: #0F172A;">—</div>
                 </div>
                 <small style="color: #64748B; display: block; margin-top: 0.5rem;">
@@ -787,6 +790,9 @@
               <button type="button" class="btn-filter-pill" data-lab="cotrafin" aria-pressed="false">
                 COTRAFIN <span class="pill-count" id="count-filter-cotrafin">0</span>
               </button>
+              <button type="button" class="btn-filter-pill" data-lab="ctfg" aria-pressed="false">
+                Constancias TFG <span class="pill-count" id="count-filter-ctfg">0</span>
+              </button>
             </div>
             <div class="table-filters">
               <input type="text" id="filter-search" class="form-control form-control-sm"
@@ -796,6 +802,7 @@
                 <option value="general">Laboratorio General</option>
                 <option value="instrumental">Laboratorio Instrumental</option>
                 <option value="cotrafin">COTRAFIN</option>
+                <option value="ctfg">Constancias TFG</option>
               </select>
               <button id="btn-sync-solicitudes" class="btn-secondary btn-sm" style="white-space: nowrap; cursor: pointer;" title="Consultar últimas aprobaciones registradas en Google Sheets">
                 Actualizar Trámites
@@ -819,6 +826,51 @@
               </tr>
             </thead>
             <tbody id="solicitudes-table-body">
+              <!-- Dynamically populated via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: REGISTRO DE CONSTANCIAS TFG (OFICINA DE ASUNTOS ESTUDIANTILES) -->
+    <!-- Acceso propio y acotado: solo lectura, solo este trámite. No ve permisos -->
+    <!-- de laboratorio ni ninguna otra pestaña administrativa (decisión del      -->
+    <!-- propietario, 16/09/2026).                                                -->
+    <!-- ========================================================================= -->
+    <section id="tab-asuntos-estudiantiles" class="tab-view" role="tabpanel" aria-labelledby="navtab-asuntos-estudiantiles" tabindex="0">
+      <div class="view-header">
+        <div class="view-title-group">
+          <h2>Registro de Constancias para Defensa de TFG</h2>
+          <p>Registro de consulta de los trámites de Constancia para Defensa de TFG y su dictamen. Este es su respaldo institucional; los correos con cada resultado y el enlace de "Marcar como recibido" siguen funcionando igual que antes.</p>
+        </div>
+        <div class="view-actions">
+          <button id="btn-sync-ctfg-ae" class="btn-secondary btn-sm" style="white-space: nowrap; cursor: pointer;" title="Consultar los últimos trámites registrados en Google Sheets">
+            Actualizar Registro
+          </button>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="table-filters" style="margin-bottom: 1rem;">
+          <input type="text" id="filter-search-ctfg-ae" class="form-control form-control-sm"
+            placeholder="Buscar por estudiante, carné o código..." aria-label="Buscar en el registro de Constancias TFG">
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <caption class="visually-hidden">Registro de solo lectura de Constancias para Defensa de TFG</caption>
+            <thead>
+              <tr>
+                <th scope="col">Código Trámite</th>
+                <th scope="col">Estudiante</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Revisó (Técnica)</th>
+                <th scope="col">Fechas</th>
+                <th scope="col">Detalle de Deuda</th>
+              </tr>
+            </thead>
+            <tbody id="ctfg-ae-table-body">
               <!-- Dynamically populated via app.js -->
             </tbody>
           </table>
@@ -1370,7 +1422,7 @@
         <button type="button" id="btn-close-modal-subsanacion" class="btn-text-action" style="color: #FFFFFF; font-size: 0.9rem;" aria-label="Cerrar ventana de subsanación">Cerrar</button>
       </div>
       <div class="modal-body" style="padding: 1.5rem; color: #334155;">
-        <p style="margin-top: 0; font-size: 0.88rem; line-height: 1.5; color: #475569;">
+        <p id="subsanacion-modal-desc" style="margin-top: 0; font-size: 0.88rem; line-height: 1.5; color: #475569;">
           Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:
         </p>
         <div class="form-group" style="margin-bottom: 1rem;">

@@ -2405,6 +2405,10 @@ body {
   display: none !important;
 }
 
+.admin-only-ae.role-hidden {
+  display: none !important;
+}
+
 .admin-role-badge {
   display: inline-flex;
   align-items: center;

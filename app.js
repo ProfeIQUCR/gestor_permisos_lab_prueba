@@ -361,6 +361,124 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.warn("Sincronización con backend diferida:", err);
     }
+    // Se sincroniza junto con los permisos para que el registro de Constancias TFG quede
+    // igual de actualizado cada vez que se refresca el Panel de Jefatura.
+    sincronizarConstanciasTFGBackend();
+  }
+
+  // Registro de solo lectura de Constancias TFG para Jefatura (sin acción, ver renderTable).
+  async function sincronizarConstanciasTFGBackend() {
+    if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return;
+    const token = localStorage.getItem('eiq_jefatura_auth_token') || '';
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar_constancias_tfg_jefatura&auth_token=${encodeURIComponent(token)}`, {
+        method: 'GET',
+        credentials: 'omit'
+      });
+      const rawText = await resp.text();
+      let result = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (e) {
+        console.warn("Aviso: el listado de Constancias TFG devolvió texto no-JSON:", rawText.slice(0, 150));
+      }
+      if (result && result.success && Array.isArray(result.constanciasTFG)) {
+        solicitudesCTFG = result.constanciasTFG;
+        renderTable();
+      }
+    } catch (err) {
+      console.warn("Sincronización de Constancias TFG diferida:", err);
+    }
+  }
+
+  // Registro de solo lectura de Constancias TFG para la Oficina de Asuntos Estudiantiles.
+  async function sincronizarConstanciasTFGAsuntosEstudiantiles() {
+    if (typeof EIQ_CONFIG === 'undefined' || !EIQ_CONFIG.isLiveMode()) return;
+    const token = localStorage.getItem('eiq_jefatura_auth_token') || '';
+    if (!token) return;
+
+    try {
+      const resp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar_constancias_tfg_asuntos_estudiantiles&auth_token=${encodeURIComponent(token)}`, {
+        method: 'GET',
+        credentials: 'omit'
+      });
+      const rawText = await resp.text();
+      let result = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (e) {
+        console.warn("Aviso: el registro de Asuntos Estudiantiles devolvió texto no-JSON:", rawText.slice(0, 150));
+      }
+      if (result && result.success && Array.isArray(result.constanciasTFG)) {
+        solicitudesCTFG_AE = result.constanciasTFG;
+        renderTablaCTFGAsuntosEstudiantiles();
+      }
+    } catch (err) {
+      console.warn("Sincronización del registro de Asuntos Estudiantiles diferida:", err);
+    }
+  }
+
+  function renderTablaCTFGAsuntosEstudiantiles() {
+    const tbody = document.getElementById('ctfg-ae-table-body');
+    if (!tbody) return;
+    const searchInput = document.getElementById('filter-search-ctfg-ae');
+    const searchTerm = (searchInput ? searchInput.value : "").toLowerCase().trim();
+
+    const filtered = solicitudesCTFG_AE.filter(s => {
+      if (!searchTerm) return true;
+      return (s.nombreEstudiante || "").toLowerCase().includes(searchTerm) ||
+             (s.carneEstudiante || "").toLowerCase().includes(searchTerm) ||
+             (s.id || "").toLowerCase().includes(searchTerm);
+    });
+
+    tbody.innerHTML = filtered.map(s => {
+      // Reutiliza CTFG_ESTADO_DISPLAY (definido junto a renderTable, misma etiqueta que ve
+      // Jefatura). Es seguro referenciarlo aquí aunque se declare más abajo en el archivo: para
+      // cuando esta función se ejecuta (clic en la pestaña), el script ya terminó de cargar.
+      const info = CTFG_ESTADO_DISPLAY[String(s.estado || "").toUpperCase()] || { label: s.estado || 'Estado desconocido', cls: 'status-pending' };
+      const fechas = [
+        s.fechaConfirmacion ? `Confirmó: ${escapeHtml(s.fechaConfirmacion)}` : null,
+        s.fechaDictamen ? `Dictamen: ${escapeHtml(s.fechaDictamen)}` : null,
+        s.fechaRecepcion ? `Recibido: ${escapeHtml(s.fechaRecepcion)}` : null
+      ].filter(Boolean).join('<br>') || '<small style="color: var(--text-muted);">—</small>';
+      const detalleDeuda = s.detalleDeuda
+        ? `<small>${escapeHtml(s.detalleDeuda)}</small>`
+        : '<small style="color: var(--text-muted);">—</small>';
+
+      return `
+        <tr>
+          <td><strong style="color: var(--ucr-blue-light); font-family: var(--font-mono);">${escapeHtml(s.id)}</strong></td>
+          <td>
+            <strong>${escapeHtml(s.nombreEstudiante)}</strong><br>
+            <small style="color: var(--text-muted);">${escapeHtml(s.carneEstudiante)}</small>
+          </td>
+          <td><span class="badge-pill ${info.cls}">${escapeHtml(info.label)}</span></td>
+          <td>${s.tecnicoNombre ? escapeHtml(s.tecnicoNombre) : '<small style="color: var(--text-muted);">—</small>'}</td>
+          <td><small>${fechas}</small></td>
+          <td>${detalleDeuda}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  const filterSearchCtfgAE = document.getElementById('filter-search-ctfg-ae');
+  if (filterSearchCtfgAE) filterSearchCtfgAE.addEventListener('input', renderTablaCTFGAsuntosEstudiantiles);
+
+  const btnSyncCtfgAE = document.getElementById('btn-sync-ctfg-ae');
+  if (btnSyncCtfgAE) {
+    btnSyncCtfgAE.addEventListener('click', async () => {
+      const origText = btnSyncCtfgAE.textContent;
+      btnSyncCtfgAE.disabled = true;
+      btnSyncCtfgAE.textContent = "Actualizando registro...";
+      await sincronizarConstanciasTFGAsuntosEstudiantiles();
+      btnSyncCtfgAE.textContent = "Registro actualizado";
+      setTimeout(() => {
+        btnSyncCtfgAE.textContent = origText;
+        btnSyncCtfgAE.disabled = false;
+      }, 1200);
+    });
   }
 
   // Sincronizar el estado de una solicitud individual con el backend (consulta ?action=verificar)
@@ -385,6 +503,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let solicitudes = cargarSolicitudesLS();
+
+  // Registro de solo lectura de Constancias TFG para Jefatura (decisión del propietario,
+  // 16/09/2026). Se mantiene en un arreglo separado (no se mezcla con `solicitudes`) para no
+  // alterar los KPIs de permisos (Pendientes/Autorizadas), que no aplican a este trámite.
+  let solicitudesCTFG = [];
+
+  // Registro de solo lectura de Constancias TFG para la Oficina de Asuntos Estudiantiles
+  // (decisión del propietario, 16/09/2026). Arreglo propio: trae más detalle que el de
+  // Jefatura (técnica que dictaminó y detalle de deuda), pero nunca el correo del estudiante.
+  let solicitudesCTFG_AE = [];
 
   // --- Element Selectors ---
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -1429,29 +1557,61 @@ document.addEventListener('DOMContentLoaded', () => {
   const subsanacionActiveBox = document.getElementById('subsanacion-active-box');
   const subsanacionActiveId = document.getElementById('subsanacion-active-id');
   const subsanacionActiveMotivo = document.getElementById('subsanacion-active-motivo');
+  const subsanacionMotivoLabel = document.getElementById('subsanacion-motivo-label');
+  const subsanacionModalTitle = document.getElementById('subsanacion-modal-title');
+  const subsanacionModalDesc = document.getElementById('subsanacion-modal-desc');
   const btnCancelSubsanacion = document.getElementById('btn-cancel-subsanacion');
   let subsanacionOriginalId = null;
 
-  function abrirModalSubsanacion() {
+  function abrirModalSubsanacion(codigoPrellenado) {
     if (!modalSubsanacion) return;
-    if (inputSubsanacionCodigo) inputSubsanacionCodigo.value = '';
+    if (inputSubsanacionCodigo) inputSubsanacionCodigo.value = codigoPrellenado || '';
     if (inputSubsanacionCarne) inputSubsanacionCarne.value = '';
     if (subsanacionStatus) subsanacionStatus.style.display = 'none';
     if (subsanacionError) subsanacionError.style.display = 'none';
+    if (subsanacionModalTitle) {
+      subsanacionModalTitle.textContent = codigoPrellenado
+        ? 'Corregir Solicitud Antes de Confirmar'
+        : 'Cargar Solicitud Devuelta para Subsanación';
+    }
+    if (subsanacionModalDesc) {
+      subsanacionModalDesc.textContent = codigoPrellenado
+        ? 'Ingrese su número de carné institucional para recuperar los datos de su solicitud y corregirlos antes de confirmar el envío a su docente.'
+        : 'Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:';
+    }
     modalSubsanacion.classList.remove('hidden');
-    if (inputSubsanacionCodigo) inputSubsanacionCodigo.focus();
+    if (codigoPrellenado && inputSubsanacionCarne) {
+      inputSubsanacionCarne.focus();
+    } else if (inputSubsanacionCodigo) {
+      inputSubsanacionCodigo.focus();
+    }
   }
 
   function cerrarModalSubsanacion() {
     if (modalSubsanacion) modalSubsanacion.classList.add('hidden');
   }
 
-  if (btnOpenSubsanacion) btnOpenSubsanacion.addEventListener('click', abrirModalSubsanacion);
+  if (btnOpenSubsanacion) btnOpenSubsanacion.addEventListener('click', () => abrirModalSubsanacion());
   if (btnCloseModalSubsanacion) btnCloseModalSubsanacion.addEventListener('click', cerrarModalSubsanacion);
   if (btnCancelModalSubsanacion) btnCancelModalSubsanacion.addEventListener('click', cerrarModalSubsanacion);
 
-  function populateSubsanacionData(solicitudData, motivo) {
+  // Apertura automática desde el enlace "Corregir antes de confirmar" de la pantalla
+  // anti-Safe-Links del correo de confirmación (?subsanar=<ticketId>), antes de que el
+  // docente sea notificado. El carné se sigue pidiendo manualmente (misma validación
+  // server-side de siempre); solo se precarga el código para evitar transcribirlo.
+  const codigoSubsanarUrl = new URLSearchParams(window.location.search).get('subsanar');
+  if (codigoSubsanarUrl) {
+    abrirModalSubsanacion(codigoSubsanarUrl.trim().toUpperCase());
+  }
+
+  function populateSubsanacionData(solicitudData, motivo, estadoOrigen) {
     if (!solicitudData) return;
+
+    if (subsanacionMotivoLabel) {
+      subsanacionMotivoLabel.textContent = (estadoOrigen === 'PENDIENTE_CONFIRMACION_ESTUDIANTE')
+        ? 'Nota:'
+        : 'Observaciones recibidas para corrección:';
+    }
 
     // 1. Laboratorio
     let labVal = 'general';
@@ -1621,7 +1781,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (respData && respData.success) {
-          populateSubsanacionData(respData.data, respData.motivoDevolucion);
+          populateSubsanacionData(respData.data, respData.motivoDevolucion, respData.estado);
           cerrarModalSubsanacion();
           goToStep(1);
           showGeneralAlert(
@@ -2164,6 +2324,12 @@ document.addEventListener('DOMContentLoaded', () => {
       sinReactivos: chkNoReactivos.checked,
       reactivos: reactivos,
       consumibles: consumibles,
+      verificacionPrevia: labType === 'instrumental' ? {
+        reactivos: document.getElementById('sel-instr-reactivos')?.value || '',
+        consumibles: document.getElementById('sel-instr-consumibles')?.value || '',
+        patrones: document.getElementById('sel-instr-patrones')?.value || '',
+        metodo: document.getElementById('sel-instr-metodo')?.value || ''
+      } : null,
       integrantes: integrantes,
       compromisosAceptados: document.querySelectorAll('#commitments-container .chk-commitment:checked').length,
       turnstileToken: turnstileToken || "",
@@ -2516,7 +2682,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function switchTab(targetId) {
     const currentRole = localStorage.getItem('eiq_portal_role') || 'estudiante';
-    if (currentRole !== 'jefatura' && targetId !== 'estudiante') {
+    const esTabDeJefatura = ['jefatura', 'historico', 'docente', 'carta'].includes(targetId);
+    const esTabDeAsuntosEstudiantiles = (targetId === 'asuntos-estudiantiles');
+    if (currentRole === 'jefatura') {
+      if (esTabDeAsuntosEstudiantiles) targetId = 'jefatura';
+    } else if (currentRole === 'asuntosestudiantiles') {
+      if (esTabDeJefatura || targetId === 'estudiante') targetId = 'asuntos-estudiantiles';
+    } else if (targetId !== 'estudiante') {
       targetId = 'estudiante';
     }
     navTabs.forEach(t => {
@@ -2540,6 +2712,8 @@ document.addEventListener('DOMContentLoaded', () => {
       renderDocenteView();
     } else if (targetId === 'carta') {
       renderOfficialLetter();
+    } else if (targetId === 'asuntos-estudiantiles') {
+      sincronizarConstanciasTFGAsuntosEstudiantiles();
     }
   }
 
@@ -2573,6 +2747,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeTipoActividad = escapeHtml(current.tipoActividad);
     const safeNombreCursoProyecto = escapeHtml(current.nombreCursoProyecto);
     const safeDocenteResponsable = escapeHtml(current.docenteResponsable);
+    const safeCorreoDocente = escapeHtml(current.correoDocente || '—');
     const safeDescripcionActividad = escapeHtml(current.descripcionActividad);
 
     // Header Lab Name
@@ -2605,39 +2780,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Instrumental Specific Notice & Prior Verification Checklist
     let instrumentalChecksHTML = "";
     if (current.tipoLaboratorio === 'instrumental') {
+      const vp = current.verificacionPrevia || {};
+      const RESP_LABEL = { si: 'Sí', no: 'No', 'n/A': 'N/A' };
+      const respTexto = (v) => RESP_LABEL[v] || 'No indicado';
       instrumentalChecksHTML = `
         <p style="font-size: 0.85rem; color: #334155; margin-bottom: 0.5rem;">
           Reconozco que el tiempo máximo del permiso de uso del equipo por persona estudiante es un mes, lo cual incluye el tiempo para el montaje del método. Este tiempo se puede modificar por falla o mantenimiento de equipos, necesidad de reactivos, o programaciones especiales.
         </p>
-        <p style="font-size: 0.85rem; color: #334155; margin-bottom: 0.4rem;">Marque las casillas según corresponda:</p>
+        <p style="font-size: 0.85rem; color: #334155; margin-bottom: 0.4rem;">Verificación previa de condiciones declarada por la persona solicitante:</p>
         <table class="latex-table" style="margin-bottom: 0.5rem;">
           <thead>
             <tr>
-              <th style="width: 75%;">Condición</th>
-              <th style="width: 12.5%; text-align: center;">Sí</th>
-              <th style="width: 12.5%; text-align: center;">No</th>
+              <th style="width: 76%;">Condición</th>
+              <th style="width: 24%; text-align: center;">Respuesta</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>¿Se cuenta con los reactivos para la realización de los análisis?</td>
-              <td style="text-align: center;">&#10003;</td>
-              <td style="text-align: center;"></td>
+              <td style="text-align: center; font-weight: bold;">${respTexto(vp.reactivos)}</td>
             </tr>
             <tr>
               <td>¿Se cuenta con los consumibles (cubetas, portamuestras, etcétera) para la realización de los análisis?</td>
-              <td style="text-align: center;">&#10003;</td>
-              <td style="text-align: center;"></td>
+              <td style="text-align: center; font-weight: bold;">${respTexto(vp.consumibles)}</td>
             </tr>
             <tr>
               <td>¿Se cuenta con los patrones para la realización de los análisis?</td>
-              <td style="text-align: center;">&#10003;</td>
-              <td style="text-align: center;"></td>
+              <td style="text-align: center; font-weight: bold;">${respTexto(vp.patrones)}</td>
             </tr>
             <tr>
               <td>¿Se cuenta con el método para el análisis deseado?</td>
-              <td style="text-align: center;">&#10003;</td>
-              <td style="text-align: center;"></td>
+              <td style="text-align: center; font-weight: bold;">${respTexto(vp.metodo)}</td>
             </tr>
           </tbody>
         </table>
@@ -2972,6 +3145,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-name-line">${safeDocenteResponsable}</div>
           <div class="sig-role-line">${sig2Role}</div>
           <div class="sig-date-line">${sig2DateText}</div>
+          ${isDocApproved ? `
+          <div class="sig-legal-notice" style="font-size: 0.65rem; color: #4B5563; margin-top: 4px; line-height: 1.25; text-align: justify;">
+            Otorgado electrónicamente por ${safeDocenteResponsable}, mediante confirmación desde el enlace enviado a su cuenta institucional ${safeCorreoDocente}, el ${fechaDocente}. Código de trámite: ${current.id}.
+          </div>
+          ` : ''}
         </div>
 
         <div class="latex-sig-box">
@@ -2981,6 +3159,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="sig-name-line">${jefeNombre}</div>
           <div class="sig-role-line">${jefeTituloSig}</div>
           <div class="sig-date-line">${sig3DateText}</div>
+          ${isJefeApproved ? `
+          <div class="sig-legal-notice" style="font-size: 0.65rem; color: #4B5563; margin-top: 4px; line-height: 1.25; text-align: justify;">
+            Autorizado electrónicamente por ${escapeHtml(jefeNombre)}, mediante sesión iniciada con credencial institucional propia, el ${fechaJefe}. Código de trámite: ${current.id}.
+          </div>
+          ` : ''}
         </div>
       </div>
 
@@ -3212,12 +3395,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const elGen = document.getElementById('count-filter-general');
     const elInst = document.getElementById('count-filter-instrumental');
     const elCot = document.getElementById('count-filter-cotrafin');
+    const elCtfg = document.getElementById('count-filter-ctfg');
 
     if (elTodos) elTodos.textContent = solicitudes.length;
     if (elGen) elGen.textContent = solicitudes.filter(s => (s.tipoLaboratorio || 'general') === 'general').length;
     if (elInst) elInst.textContent = solicitudes.filter(s => s.tipoLaboratorio === 'instrumental').length;
     if (elCot) elCot.textContent = solicitudes.filter(s => s.tipoLaboratorio === 'cotrafin').length;
+    // Constancias TFG vive en su propio registro, no cuenta dentro de "Todos" (KPIs de
+    // permisos no le aplican a este trámite).
+    if (elCtfg) elCtfg.textContent = solicitudesCTFG.length;
   }
+
+  // Etiquetas de estado de solo lectura para el registro de Constancias TFG (Jefatura).
+  const CTFG_ESTADO_DISPLAY = {
+    PENDIENTE_CONFIRMACION_ESTUDIANTE: { label: 'Pendiente confirmación del estudiante', cls: 'status-pending' },
+    PENDIENTE_REVISION_TECNICA: { label: 'En revisión técnica', cls: 'status-pending' },
+    SOLVENTE_PEND_RECEPCION: { label: 'Solvente — pendiente de recepción', cls: 'status-docente-approved' },
+    CON_DEUDAS_PEND_RECEPCION: { label: 'Con deudas — pendiente de recepción', cls: 'status-rejected' },
+    CONFORME: { label: 'Conforme (recibido)', cls: 'status-authorized' },
+    CON_DEUDAS_NOTIFICADO: { label: 'Con deudas (notificado)', cls: 'status-rejected' },
+    EXPIRADO_SIN_CONFIRMACION: { label: 'Expiró sin confirmar', cls: 'status-rejected' },
+    SUPERADO_POR_SUBSANACION: { label: 'Superado por subsanación', cls: 'status-rejected' }
+  };
 
   // --- Jefatura Table & Dashboard Logic ---
   function renderTable() {
@@ -3225,6 +3424,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const labFilter = activeLabFilter || (filterLab ? filterLab.value : 'todos') || 'todos';
 
     actualizarContadoresFiltrosLab();
+
+    // Registro de solo lectura de Constancias TFG: no comparte fila/lógica con los permisos
+    // (dato distinto, sin botón de acción -- Jefatura no participa en este trámite).
+    if (labFilter === 'ctfg') {
+      const filteredCTFG = solicitudesCTFG.filter(s => {
+        if (!searchTerm) return true;
+        return (s.nombreEstudiante || "").toLowerCase().includes(searchTerm) ||
+               (s.carneEstudiante || "").toLowerCase().includes(searchTerm) ||
+               (s.id || "").toLowerCase().includes(searchTerm);
+      });
+
+      solicitudesTableBody.innerHTML = filteredCTFG.map(s => {
+        const info = CTFG_ESTADO_DISPLAY[String(s.estado || "").toUpperCase()] || { label: s.estado || 'Estado desconocido', cls: 'status-pending' };
+        return `
+          <tr>
+            <td><strong style="color: var(--ucr-blue-light); font-family: var(--font-mono);">${escapeHtml(s.id)}</strong></td>
+            <td>
+              <strong>${escapeHtml(s.nombreEstudiante)}</strong><br>
+              <small style="color: var(--text-muted);">${escapeHtml(s.carneEstudiante)}</small>
+            </td>
+            <td>Constancia para Defensa de TFG</td>
+            <td>—</td>
+            <td><small>${escapeHtml(s.fecha || '—')}</small></td>
+            <td><span class="badge-pill ${info.cls}">${escapeHtml(info.label)}</span></td>
+            <td><small style="color: var(--text-muted);">Solo lectura</small></td>
+          </tr>
+        `;
+      }).join('');
+      return;
+    }
 
     const filtered = solicitudes.filter(s => {
       const matchSearch = !searchTerm || 
@@ -10051,8 +10280,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Memoria persistente autenticada en este navegador (verificada criptográficamente)
     const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (savedRole === 'jefatura' && savedToken) {
-      return 'jefatura';
+    if (savedToken && (savedRole === 'jefatura' || savedRole === 'asuntosestudiantiles')) {
+      return savedRole;
     }
 
     return 'estudiante';
@@ -10060,39 +10289,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function applyRoleVisibility(role, isInitialLoad = false) {
     const isJefatura = (role === 'jefatura');
+    const isAsuntosEstudiantiles = (role === 'asuntosestudiantiles');
 
-    // Elementos administrativos (pestañas y botón demo)
+    // Elementos administrativos de Jefatura (pestañas Docente/Jefatura/Histórico/Carta y botón demo)
     adminElements.forEach(el => {
       el.classList.toggle('role-hidden', !isJefatura);
     });
 
-    // Barra de pestañas completa: visible solo para Jefatura
+    // Pestaña propia y acotada de Asuntos Estudiantiles (nunca visible para Jefatura ni estudiantes)
+    document.querySelectorAll('.admin-only-ae').forEach(el => {
+      el.classList.toggle('role-hidden', !isAsuntosEstudiantiles);
+    });
+
+    // Barra de pestañas completa: visible para cualquier sesión autenticada (Jefatura o Asuntos
+    // Estudiantiles); cada una ve únicamente sus propias pestañas gracias a los toggles de arriba.
     if (roleNav) {
-      roleNav.classList.toggle('role-hidden', !isJefatura);
+      roleNav.classList.toggle('role-hidden', !(isJefatura || isAsuntosEstudiantiles));
     }
 
-    // Distintivo de Jefatura en el header con nombre del funcionario
+    // Distintivo de sesión en el header con nombre del funcionario o de la oficina
     if (adminRoleBadge) {
-      adminRoleBadge.style.display = isJefatura ? 'inline-flex' : 'none';
+      adminRoleBadge.style.display = (isJefatura || isAsuntosEstudiantiles) ? 'inline-flex' : 'none';
       const titleSpan = adminRoleBadge.querySelector('.badge-role-title');
       if (titleSpan) {
         const funcNombre = localStorage.getItem('eiq_funcionario_nombre');
         const funcCargo = localStorage.getItem('eiq_funcionario_cargo');
         if (funcNombre) {
           const partes = funcNombre.replace(/^(Ing\.|Lic\.|Dra\.|Dr\.)\s*/i, '').trim().split(/\s+/);
-          const nombreCorto = partes[0] + ' ' + (partes[1] || '');
+          const nombreCorto = isAsuntosEstudiantiles ? funcNombre : (partes[0] + ' ' + (partes[1] || ''));
           titleSpan.textContent = nombreCorto;
-          titleSpan.title = `${funcNombre} (${funcCargo || 'Jefatura'})`;
+          titleSpan.title = `${funcNombre} (${funcCargo || (isAsuntosEstudiantiles ? 'Asuntos Estudiantiles' : 'Jefatura')})`;
         } else {
-          titleSpan.textContent = 'Jefatura';
-          titleSpan.title = 'Sesión Administrativa de Jefatura';
+          titleSpan.textContent = isAsuntosEstudiantiles ? 'Asuntos Estudiantiles' : 'Jefatura';
+          titleSpan.title = isAsuntosEstudiantiles ? 'Sesión de Asuntos Estudiantiles' : 'Sesión Administrativa de Jefatura';
         }
       }
     }
 
     // Enlace en el footer
     if (linkAdminLogin) {
-      linkAdminLogin.textContent = isJefatura ? "Cerrar sesión Jefatura" : "Acceso Funcionarios";
+      linkAdminLogin.textContent = (isJefatura || isAsuntosEstudiantiles) ? "Cerrar sesión" : "Acceso Funcionarios";
     }
 
     if (isJefatura) {
@@ -10121,6 +10357,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         switchTab('jefatura');
       }
+    } else if (isAsuntosEstudiantiles) {
+      // Acceso propio y acotado: solo su registro de Constancias TFG, ninguna otra pestaña.
+      switchTab('asuntos-estudiantiles');
     } else {
       // En modo estudiante, la vista siempre se mantiene en el formulario
       switchTab('estudiante');
@@ -10170,8 +10409,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await resp.json();
 
         if (data && data.success) {
+          // El mismo formulario de clave sirve para todos los perfiles; el backend indica
+          // en data.rolId a quién pertenece la clave ingresada. Asuntos Estudiantiles recibe
+          // un rol propio y acotado, distinto de 'jefatura' (decisión del propietario, 16/09/2026).
+          const rolEfectivo = (data.rolId === 'asuntosestudiantiles') ? 'asuntosestudiantiles' : 'jefatura';
           localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-          localStorage.setItem(ROLE_STORAGE_KEY, 'jefatura');
+          localStorage.setItem(ROLE_STORAGE_KEY, rolEfectivo);
           if (data.funcionario) localStorage.setItem('eiq_funcionario_nombre', data.funcionario);
           if (data.cargo) localStorage.setItem('eiq_funcionario_cargo', data.cargo);
           if (data.iniciales) localStorage.setItem('eiq_funcionario_iniciales', data.iniciales);
@@ -10179,7 +10422,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.rolId) localStorage.setItem('eiq_funcionario_rol_id', data.rolId);
 
           closeAdminPinModal();
-          applyRoleVisibility('jefatura');
+          applyRoleVisibility(rolEfectivo);
           showGeneralAlert("Acceso Concedido", data.mensaje || `Bienvenido(a), ${data.funcionario || 'Jefatura'}.`);
         } else {
           if (adminPinError) {
