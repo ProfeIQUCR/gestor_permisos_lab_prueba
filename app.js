@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (opts.correoConfirmacionPendiente) {
           reassuranceText.innerHTML = "<strong>Su solicitud quedó registrada con código " + (opts.ticketId || "—") + ".</strong> Por saturación temporal del servicio de correo, el enlace de confirmación puede tardar unos minutos en llegar a su buzón institucional. No vuelva a enviar la solicitud; el sistema la reintentará automáticamente.";
         } else {
-          reassuranceText.innerHTML = "<strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).";
+          reassuranceText.innerHTML = "<strong>Por favor revise su bandeja de entrada</strong> (verifique también su carpeta de correo no deseado o spam). Por motivos de seguridad de los servidores de correo, ocasionalmente puede tardar hasta 10 minutos en llegar.";
         }
       }
     } else {
