@@ -1753,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         let respData = null;
 
-        if (EIQ_CONFIG.IS_LIVE_MODE && EIQ_CONFIG.API_BACKEND_URL) {
+        if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
           const url = `${EIQ_CONFIG.API_BACKEND_URL}?action=obtener_subsanacion&id=${encodeURIComponent(codigo)}&carne=${encodeURIComponent(carne)}&_nc=${Date.now()}`;
           const res = await fetch(url, { method: 'GET', redirect: 'follow' });
           const raw = await res.text();
