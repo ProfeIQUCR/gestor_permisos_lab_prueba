@@ -3337,10 +3337,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return [];
     }
 
+    // Normaliza a YYYY-MM-DD (comparable lexicográficamente) tanto fechas ISO como
+    // DD/MM/YYYY -- el backend en vivo entrega las fechas del listado de Jefatura ya
+    // formateadas como DD/MM/YYYY (regla institucional de formato), así que sin esta
+    // conversión la comparación de solapamiento de abajo terminaba comparando esas
+    // cadenas como texto (ordenadas por día del mes, no por fecha real), produciendo
+    // tanto falsos positivos como negativos entre solicitudes de distintos meses/años.
     const normFecha = (f) => {
       if (!f) return null;
-      const m = String(f).match(/^(\d{4})-(\d{2})-(\d{2})/);
-      return m ? m[0] : f;
+      const s = String(f).trim();
+      const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (mIso) return mIso[0];
+      const mDmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (mDmy) {
+        return `${mDmy[3]}-${mDmy[2].padStart(2, '0')}-${mDmy[1].padStart(2, '0')}`;
+      }
+      return s;
     };
 
     const fInicioA = normFecha(solicitud.fechaInicio);
