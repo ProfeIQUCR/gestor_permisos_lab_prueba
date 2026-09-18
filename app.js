@@ -1560,6 +1560,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const subsanacionMotivoLabel = document.getElementById('subsanacion-motivo-label');
   const subsanacionModalTitle = document.getElementById('subsanacion-modal-title');
   const subsanacionModalDesc = document.getElementById('subsanacion-modal-desc');
+  const subsanacionCodigoLabel = document.getElementById('subsanacion-codigo-label');
+  const subsanacionCodigoHint = document.getElementById('subsanacion-codigo-hint');
+  const subsanacionActiveBadge = document.getElementById('subsanacion-active-badge');
   const btnCancelSubsanacion = document.getElementById('btn-cancel-subsanacion');
   let subsanacionOriginalId = null;
 
@@ -1578,6 +1581,16 @@ document.addEventListener('DOMContentLoaded', () => {
       subsanacionModalDesc.textContent = codigoPrellenado
         ? 'Ingrese su número de carné institucional para recuperar los datos de su solicitud y corregirlos antes de confirmar el envío a su docente.'
         : 'Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:';
+    }
+    if (subsanacionCodigoLabel) {
+      subsanacionCodigoLabel.innerHTML = codigoPrellenado
+        ? 'Código de su Solicitud <span class="required">*</span>'
+        : 'Código de Solicitud Devuelta <span class="required">*</span>';
+    }
+    if (subsanacionCodigoHint) {
+      subsanacionCodigoHint.textContent = codigoPrellenado
+        ? 'Código del trámite indicado en el enlace de su correo de confirmación.'
+        : 'Código del trámite tal como fue emitido en su acuse y correo de devolución.';
     }
     modalSubsanacion.classList.remove('hidden');
     if (codigoPrellenado && inputSubsanacionCarne) {
@@ -1607,10 +1620,17 @@ document.addEventListener('DOMContentLoaded', () => {
   function populateSubsanacionData(solicitudData, motivo, estadoOrigen) {
     if (!solicitudData) return;
 
+    const esCorreccionPropia = (estadoOrigen === 'PENDIENTE_CONFIRMACION_ESTUDIANTE');
+
     if (subsanacionMotivoLabel) {
-      subsanacionMotivoLabel.textContent = (estadoOrigen === 'PENDIENTE_CONFIRMACION_ESTUDIANTE')
+      subsanacionMotivoLabel.textContent = esCorreccionPropia
         ? 'Nota:'
         : 'Observaciones recibidas para corrección:';
+    }
+    if (subsanacionActiveBadge) {
+      subsanacionActiveBadge.textContent = esCorreccionPropia
+        ? 'Editando su Solicitud'
+        : 'Expediente en Subsanación';
     }
 
     // 1. Laboratorio

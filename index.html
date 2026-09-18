@@ -143,7 +143,7 @@
             <!-- Recuadro informativo de subsanación activa (inicialmente oculto) -->
             <div id="subsanacion-active-box" class="subsanacion-active-card hidden mb-3">
               <div class="subsanacion-active-header">
-                <span class="subsanacion-active-badge">Expediente en Subsanación</span>
+                <span id="subsanacion-active-badge" class="subsanacion-active-badge">Expediente en Subsanación</span>
                 <button type="button" id="btn-cancel-subsanacion" class="btn-text-xs" title="Descartar subsanación y limpiar formulario">Descartar subsanación</button>
               </div>
               <div class="subsanacion-active-body">
@@ -1426,9 +1426,9 @@
           Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:
         </p>
         <div class="form-group" style="margin-bottom: 1rem;">
-          <label class="form-label" for="subsanacion-codigo" style="font-size: 0.85rem; font-weight: 600; color: var(--ucr-blue-dark);">Código de Solicitud Devuelta <span class="required">*</span></label>
+          <label class="form-label" id="subsanacion-codigo-label" for="subsanacion-codigo" style="font-size: 0.85rem; font-weight: 600; color: var(--ucr-blue-dark);">Código de Solicitud Devuelta <span class="required">*</span></label>
           <input type="text" id="subsanacion-codigo" class="form-control" placeholder="Ej. LG-PERM-2026-0033" autocomplete="off" style="width: 100%; font-size: 0.95rem; padding: 0.65rem;" />
-          <small class="form-text-hint" style="color: #64748B; font-size: 0.78rem;">Código del trámite tal como fue emitido en su acuse y correo de devolución.</small>
+          <small id="subsanacion-codigo-hint" class="form-text-hint" style="color: #64748B; font-size: 0.78rem;">Código del trámite tal como fue emitido en su acuse y correo de devolución.</small>
         </div>
         <div class="form-group" style="margin-bottom: 0.5rem;">
           <label class="form-label" for="subsanacion-carne" style="font-size: 0.85rem; font-weight: 600; color: var(--ucr-blue-dark);">Número de Carné Institucional <span class="required">*</span></label>
