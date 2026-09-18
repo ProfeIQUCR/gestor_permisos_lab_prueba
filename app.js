@@ -1804,9 +1804,12 @@ document.addEventListener('DOMContentLoaded', () => {
           populateSubsanacionData(respData.data, respData.motivoDevolucion, respData.estado);
           cerrarModalSubsanacion();
           goToStep(1);
+          const esCorreccionPropiaAlert = (respData.estado === 'PENDIENTE_CONFIRMACION_ESTUDIANTE');
           showGeneralAlert(
-            'Expediente Cargado para Subsanación',
-            `Se han cargado exitosamente los datos de la solicitud ${codigo}.\n\nPor favor revise las observaciones del docente o la jefatura, realice las correcciones requeridas y firme nuevamente en el Paso 4 para generar un nuevo trámite formal.`
+            esCorreccionPropiaAlert ? 'Expediente Cargado para Corrección' : 'Expediente Cargado para Subsanación',
+            esCorreccionPropiaAlert
+              ? `Se han cargado exitosamente los datos de la solicitud ${codigo}.\n\nRevise la información registrada, realice los ajustes necesarios y firme nuevamente en el Paso 4 para confirmar el envío a su docente.`
+              : `Se han cargado exitosamente los datos de la solicitud ${codigo}.\n\nPor favor revise las observaciones del docente o la jefatura, realice las correcciones requeridas y firme nuevamente en el Paso 4 para generar un nuevo trámite formal.`
           );
         } else {
           if (subsanacionError) {
