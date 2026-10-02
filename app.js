@@ -3044,13 +3044,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const esExpiradoLetter = Boolean(estUpperLetter.includes("EXPIRADO") || current.expiradoSinConfirmacion);
     const esPendienteConfirmacionLetter = Boolean(estUpperLetter === "PENDIENTE_CONFIRMACION_ESTUDIANTE" || current.pendienteConfirmacion);
     const esPendienteLetter = Boolean(estUpperLetter.includes("PENDIENTE") && !esPendienteConfirmacionLetter);
-    const isDocApproved = !esDevueltoLetter && !esExpiradoLetter && !esPendienteConfirmacionLetter && !esPendienteLetter && Boolean(
-      current.docenteAprobado || 
-      estUpperLetter === "APROBADO_DOCENTE" || 
-      estUpperLetter.includes("APROBADO POR DOCENTE") || 
-      estUpperLetter.includes("AUTORIZADO") || 
+    // Una devolución de Jefatura no anula el Visto Bueno ya otorgado por el docente (vbDocenteOtorgado
+    // lo calcula el backend; docenteAprobado se apaga al devolver porque alimenta los contadores).
+    const esDevueltoJefaturaLetter = Boolean(esDevueltoLetter && (estUpperLetter.includes("JEFATURA") || current.devueltoJefatura));
+    const isDocApproved = (esDevueltoJefaturaLetter && current.vbDocenteOtorgado === true) || (!esDevueltoLetter && !esExpiradoLetter && !esPendienteConfirmacionLetter && !esPendienteLetter && Boolean(
+      current.docenteAprobado ||
+      estUpperLetter === "APROBADO_DOCENTE" ||
+      estUpperLetter.includes("APROBADO POR DOCENTE") ||
+      estUpperLetter.includes("AUTORIZADO") ||
       current.jefeAprobado
-    );
+    ));
 
     let docenteInitials = current.docenteIniciales;
     if ((!docenteInitials || docenteInitials === 'GCV') && current.docenteResponsable) {
@@ -3073,9 +3076,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const jefeInitials = current.jefeIniciales || config.titularIniciales;
     const jefeNombre = current.jefeNombre || config.titularNombre;
     const jefeTituloSig = current.jefeTituloSig || config.titularSig;
-    const sig3SealText = isJefeApproved ? `AUTORIZADO EIQ [${jefeInitials}]` : 'EN REVISIÓN';
+    const sig3SealText = isJefeApproved ? `AUTORIZADO EIQ [${jefeInitials}]` : (esDevueltoJefaturaLetter ? 'DEVUELTA PARA CORRECCIÓN' : 'EN REVISIÓN');
     const fechaJefe = current.jefeFecha || 'Pendiente de autorización';
-    const sig3DateText = isJefeApproved ? `Fecha: ${fechaJefe}` : 'Pendiente de autorización';
+    const fechaDevJefe = String(current.jefeFecha || '').match(/^\d{2}\/\d{2}\/\d{4}/);
+    const sig3DateText = isJefeApproved ? `Fecha: ${fechaJefe}` : ((esDevueltoJefaturaLetter && fechaDevJefe) ? `Fecha: ${fechaDevJefe[0]}` : 'Pendiente de autorización');
 
     return `
       <!-- Header Banner -->
@@ -3841,6 +3845,7 @@ document.addEventListener('DOMContentLoaded', () => {
           s.estado = "Devuelto por Jefatura / Corrección";
           s.devueltoJefatura = true;
           s.devueltoDocente = true;
+          s.vbDocenteOtorgado = Boolean(s.vbDocenteOtorgado || s.docenteAprobado);
           s.docenteAprobado = false;
           s.jefeObservaciones = motivo.trim();
 
