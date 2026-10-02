@@ -3538,7 +3538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         estadoLabel = "Autorizado por Jefatura";
       } else if (esDevuelto) {
         statusClass = "status-rejected";
-        estadoLabel = "Devuelto por Docente";
+        estadoLabel = (estUpper.includes("JEFATURA") || s.devueltoJefatura) ? "Devuelto por Jefatura" : "Devuelto por Docente";
       } else if (esExpirado) {
         statusClass = "status-rejected";
         estadoLabel = "Expiró sin confirmar";
@@ -3753,7 +3753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     if (esDevueltoModal) {
-      btnModalAutorizar.textContent = "Solicitud Devuelta por Docente";
+      btnModalAutorizar.textContent = (estUpperModal.includes("JEFATURA") || s.devueltoJefatura) ? "Solicitud Devuelta por Jefatura" : "Solicitud Devuelta por Docente";
       btnModalAutorizar.className = "btn-secondary";
       btnModalAutorizar.disabled = true;
       btnModalDevolver.classList.add('hidden');
