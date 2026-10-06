@@ -665,6 +665,7 @@
               <button type="button" class="btn-text-chip" data-obs="Por favor ajustar o justificar el período de fechas solicitado para la actividad.">Ajustar fechas</button>
               <button type="button" class="btn-text-chip" data-obs="Por favor justificar o detallar las cantidades y purezas de los reactivos solicitados.">Detallar reactivos</button>
               <button type="button" class="btn-text-chip" data-obs="Por favor indicar la placa UCR oficial de los equipos requeridos.">Indicar placa equipos</button>
+              <button type="button" class="btn-text-chip" data-obs="Solicitud duplicada: esta solicitud repite otra que usted ya envió y que sigue su trámite normal. Esta queda sin efecto y no requiere ninguna acción de su parte.">Solicitud duplicada</button>
             </div>
           </div>
           <div style="display: flex; gap: 0.75rem; align-items: flex-end; justify-content: flex-end;">
@@ -728,15 +729,15 @@
         <div id="box-delegacion-fields" class="form-grid-3 mt-3 hidden">
           <div class="form-group mb-0">
             <label class="form-label" for="delegado-nombre">Nombre de la Persona Suplente <span class="required">*</span></label>
-            <input type="text" id="delegado-nombre" class="form-control" placeholder="Ej. Dra. Rebeca Salazar Vega" value="Dra. Rebeca Salazar Vega">
+            <input type="text" id="delegado-nombre" class="form-control" placeholder="Nombre completo con grado académico" autocomplete="off">
           </div>
           <div class="form-group mb-0">
             <label class="form-label" for="delegado-cargo">Puesto / Cargo <span class="required">*</span></label>
-            <input type="text" id="delegado-cargo" class="form-control" placeholder="Ej. Jefa de Laboratorio a.i." value="Jefa de Laboratorio a.i.">
+            <input type="text" id="delegado-cargo" class="form-control" placeholder="Ej. Jefa de Laboratorio a.i." autocomplete="off">
           </div>
           <div class="form-group mb-0">
             <label class="form-label" for="delegado-iniciales">Iniciales del Suplente <span class="required">*</span></label>
-            <input type="text" id="delegado-iniciales" class="form-control form-control-initials" placeholder="Ej. RSV" value="RSV" maxlength="6">
+            <input type="text" id="delegado-iniciales" class="form-control form-control-initials" placeholder="Iniciales" maxlength="6" autocomplete="off">
           </div>
         </div>
       </div>
@@ -1311,10 +1312,10 @@
             <p class="feedback-reassurance-text" id="feedback-reassurance-text">
               <strong>Por favor revise su bandeja de entrada en unos minutos</strong> (verifique también su carpeta de correo no deseado o spam).
             </p>
-            <p class="feedback-reassurance-text">
+            <p class="feedback-reassurance-text" id="feedback-guia-text">
               No es necesario enviar una nueva solicitud de inmediato. Si al cabo de unos minutos no recibe el correo de confirmación, puede solicitar el reenvío a continuación. Si el problema persiste, comuníquese directamente con la Jefatura de Laboratorios al correo: <a href="mailto:laboratorio.eiq@ucr.ac.cr" class="feedback-link">laboratorio.eiq@ucr.ac.cr</a>.
             </p>
-            <div style="margin-top: 10px; text-align: right;">
+            <div id="feedback-reenviar-wrap" style="margin-top: 10px; text-align: right;">
               <button type="button" id="btn-feedback-reenviar" class="feedback-link" style="background: none; border: none; font-size: 13px; text-decoration: underline; cursor: pointer; color: #004C87; font-weight: 600; padding: 0;">
                 No me llegó el correo — reenviar
               </button>
@@ -1351,6 +1352,9 @@
           </p>
           <div class="form-group" style="margin-bottom: 0;">
             <textarea id="textarea-jefatura-observaciones" class="form-control" rows="4" placeholder="Ej. Ajustar el cronograma de fechas a la segunda semana y justificar el volumen solicitado del solvente..." required aria-label="Observaciones y motivos de devolución para la persona estudiante" style="width: 100%; resize: vertical; min-height: 100px; font-family: inherit; font-size: 0.9rem; padding: 0.75rem;"></textarea>
+            <div style="margin-top: 0.5rem;">
+              <button type="button" class="btn-text-chip" id="btn-jefatura-motivo-duplicado" data-obs="Solicitud duplicada: esta solicitud repite otra que usted ya envió y que sigue su trámite normal. Esta queda sin efecto y no requiere ninguna acción de su parte.">Solicitud duplicada</button>
+            </div>
             <small class="form-text-hint" style="display: block; margin-top: 0.5rem; color: #64748B;">
               Estas observaciones se enviarán íntegramente por correo institucional a la persona estudiante con copia al docente responsable.
             </small>
@@ -1377,6 +1381,23 @@
         </div>
         <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 0.75rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
           <button type="button" id="btn-alert-modal-ok" class="btn-primary">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmación institucional (Cancelar / Confirmar) -->
+    <div id="modal-general-confirm" class="modal-backdrop hidden" style="z-index: 10002;" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header" style="background: var(--ucr-blue-dark); color: #FFFFFF; padding: 1rem 1.25rem;">
+          <h3 id="confirm-modal-title" style="color: #FFFFFF; margin: 0; font-size: 1.1rem; font-family: var(--font-heading);">Confirmación</h3>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; color: #334155; font-size: 0.95rem; line-height: 1.6;">
+          <div id="confirm-modal-content" style="white-space: pre-line;"></div>
+        </div>
+        <div class="modal-footer" style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; padding: 0.75rem 1.5rem; background: #F8FAFC; border-top: 1px solid var(--border-color);">
+          <button type="button" id="btn-confirm-modal-cancel" class="btn-secondary">Cancelar</button>
+          <button type="button" id="btn-confirm-modal-extra" class="btn-secondary hidden"></button>
+          <button type="button" id="btn-confirm-modal-ok" class="btn-success">Confirmar</button>
         </div>
       </div>
     </div>

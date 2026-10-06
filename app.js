@@ -564,10 +564,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const chkDelegacionFirma = document.getElementById('chk-delegacion-firma');
   const boxDelegacionFields = document.getElementById('box-delegacion-fields');
 
+  // La delegación se guarda en este navegador para que una recarga no la desactive en silencio (lo que
+  // haría firmar a nombre del titular). Al cerrar sesión se apaga la casilla; los datos se conservan.
+  const DELEGACION_STORAGE_KEY = 'eiq_delegacion_firma';
+  const DELEGACION_CAMPOS = ['delegado-nombre', 'delegado-cargo', 'delegado-iniciales'];
+
+  function guardarDelegacion() {
+    if (!chkDelegacionFirma) return;
+    const datos = { activa: chkDelegacionFirma.checked };
+    DELEGACION_CAMPOS.forEach(idCampo => { datos[idCampo] = document.getElementById(idCampo)?.value || ''; });
+    try { localStorage.setItem(DELEGACION_STORAGE_KEY, JSON.stringify(datos)); } catch (e) {}
+  }
+
+  function restaurarDelegacion() {
+    if (!chkDelegacionFirma || !boxDelegacionFields) return;
+    let datos = null;
+    try { datos = JSON.parse(localStorage.getItem(DELEGACION_STORAGE_KEY) || 'null'); } catch (e) {}
+    if (datos) {
+      DELEGACION_CAMPOS.forEach(idCampo => {
+        const el = document.getElementById(idCampo);
+        if (el && typeof datos[idCampo] === 'string') el.value = datos[idCampo];
+      });
+      if (!chkDelegacionFirma.disabled) chkDelegacionFirma.checked = Boolean(datos.activa);
+    }
+    boxDelegacionFields.classList.toggle('hidden', !chkDelegacionFirma.checked);
+  }
+
+  // La credencial de suplencia siempre firma por delegación: se fuerza la casilla y se bloquea.
+  function aplicarDelegacionSegunPerfil() {
+    if (!chkDelegacionFirma || !boxDelegacionFields) return;
+    const esSuplente = localStorage.getItem('eiq_funcionario_rol_id') === 'suplente';
+    chkDelegacionFirma.disabled = esSuplente;
+    if (esSuplente) chkDelegacionFirma.checked = true;
+    chkDelegacionFirma.title = esSuplente
+      ? 'La credencial de suplencia firma siempre por delegación: complete sus datos.'
+      : '';
+    boxDelegacionFields.classList.toggle('hidden', !chkDelegacionFirma.checked);
+  }
+
   if (chkDelegacionFirma && boxDelegacionFields) {
     chkDelegacionFirma.addEventListener('change', () => {
       boxDelegacionFields.classList.toggle('hidden', !chkDelegacionFirma.checked);
+      guardarDelegacion();
     });
+    DELEGACION_CAMPOS.forEach(idCampo => {
+      const el = document.getElementById(idCampo);
+      if (el) el.addEventListener('input', guardarDelegacion);
+    });
+    restaurarDelegacion();
+    aplicarDelegacionSegunPerfil();
   }
 
   // Print & Table Elements
@@ -646,6 +691,68 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnClose) btnClose.addEventListener('click', closeHandler, { once: true });
   }
 
+  // Confirmación con Cancelar/Confirmar. Resuelve true solo si la persona confirma explícitamente,
+  // false al cancelar, y 'extra' si se ofreció y eligió una tercera opción (opciones.extraLabel).
+  function showGeneralConfirm(title, message, confirmLabel, opciones = {}) {
+    return new Promise(resolve => {
+      const modal = document.getElementById('modal-general-confirm');
+      if (!modal) { resolve(false); return; }
+      const titleEl = document.getElementById('confirm-modal-title');
+      const contentEl = document.getElementById('confirm-modal-content');
+      const btnOk = document.getElementById('btn-confirm-modal-ok');
+      const btnCancel = document.getElementById('btn-confirm-modal-cancel');
+      const btnExtra = document.getElementById('btn-confirm-modal-extra');
+      if (titleEl) titleEl.textContent = title || "Confirmación";
+      if (contentEl) contentEl.textContent = message || "";
+      if (btnOk) btnOk.textContent = confirmLabel || "Confirmar";
+      if (btnCancel) btnCancel.textContent = opciones.cancelLabel || "Cancelar";
+      if (btnExtra) {
+        btnExtra.textContent = opciones.extraLabel || "";
+        btnExtra.classList.toggle('hidden', !opciones.extraLabel);
+      }
+      modal.classList.remove('hidden');
+      activarFocoModal(modal);
+      const cerrar = (resultado) => {
+        desactivarFocoModal(modal);
+        modal.classList.add('hidden');
+        btnOk.removeEventListener('click', onOk);
+        btnCancel.removeEventListener('click', onCancel);
+        if (btnExtra) btnExtra.removeEventListener('click', onExtra);
+        resolve(resultado);
+      };
+      const onOk = () => cerrar(true);
+      const onCancel = () => cerrar(false);
+      const onExtra = () => cerrar('extra');
+      btnOk.addEventListener('click', onOk);
+      btnCancel.addEventListener('click', onCancel);
+      if (btnExtra) btnExtra.addEventListener('click', onExtra);
+    });
+  }
+
+  // Firma de Jefatura para autorizar o devolver: la del titular del laboratorio, o la de la persona
+  // suplente si la delegación está activa. Con delegación, los tres campos son obligatorios: nunca se
+  // rellenan con valores de ejemplo, porque terminarían impresos en una carta oficial.
+  function obtenerFirmaJefatura(s) {
+    const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
+    const chk = document.getElementById('chk-delegacion-firma');
+    if (!chk || !chk.checked) {
+      return {
+        nombre: config.titularNombre,
+        cargo: config.titularCargo,
+        tituloSig: config.titularSig,
+        iniciales: config.titularIniciales,
+        esDelegado: false
+      };
+    }
+    const nombre = (document.getElementById('delegado-nombre')?.value || '').trim();
+    const cargo = (document.getElementById('delegado-cargo')?.value || '').trim();
+    const iniciales = (document.getElementById('delegado-iniciales')?.value || '').trim().toUpperCase();
+    if (!nombre || !cargo || !iniciales) {
+      return { error: "La delegación de firma está activa, pero faltan datos de la persona suplente. Complete nombre, puesto o cargo e iniciales en la tarjeta «Gestión de Autorización y Delegación de Firma» antes de continuar." };
+    }
+    return { nombre, cargo, tituloSig: 'V.B. ' + cargo, iniciales, esDelegado: true };
+  }
+
   function showSubmissionLoading(msg) {
     const modal = document.getElementById('modal-submission-loading');
     const textEl = document.getElementById('submission-loading-msg');
@@ -673,6 +780,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const reassuranceText = document.getElementById('feedback-reassurance-text');
     const btnCerrar = document.getElementById('btn-feedback-cerrar');
     const btnNueva = document.getElementById('btn-feedback-nueva-solicitud');
+    const guiaText = document.getElementById('feedback-guia-text');
+    const reenviarWrap = document.getElementById('feedback-reenviar-wrap');
+    const enlaceBuzon = '<a href="mailto:laboratorio.eiq@ucr.ac.cr" class="feedback-link">laboratorio.eiq@ucr.ac.cr</a>';
+
+    // Esta ventana es el primer momento en que la persona estudiante puede notar un error o dudar de
+    // si el envío funcionó: el texto debe disuadir de enviar una segunda solicitud en ambos casos.
+    if (guiaText) {
+      guiaText.innerHTML = opts.success
+        ? "<strong>No envíe una nueva solicitud.</strong> Si detecta un error en lo que declaró, podrá corregirlo desde la pantalla que se abre al presionar el botón del correo de confirmación, antes de que llegue a su docente. Si al cabo de unos minutos no recibe ese correo, solicite el reenvío a continuación; si el problema persiste, escriba a " + enlaceBuzon + " indicando su código de trámite."
+        : "<strong>No envíe una nueva solicitud todavía:</strong> es posible que esta sí haya quedado registrada y que el correo solo esté demorado. Si en 15 minutos no recibe el correo de confirmación con su código de trámite, escriba a " + enlaceBuzon + " con su nombre completo y carné, y la Jefatura le confirmará si su solicitud quedó registrada antes de que la envíe de nuevo.";
+    }
+    // Sin código confirmado por el servidor no hay nada que reenviar (el código provisional local no existe en la hoja).
+    if (reenviarWrap) reenviarWrap.style.display = opts.success ? "" : "none";
 
     if (opts.success) {
       if (titleEl) titleEl.textContent = "Solicitud enviada con éxito";
@@ -690,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (titleEl) titleEl.textContent = "Verificación de Envío en Proceso";
       if (ticketBox) ticketBox.style.display = "none";
       if (reassuranceText) {
-        reassuranceText.innerHTML = "<strong>No se pudo confirmar de inmediato la recepción debido a una intermitencia de red.</strong> Por favor revise su bandeja de entrada en unos minutos para comprobar si recibió el acuse de recibo con su código de trámite.";
+        reassuranceText.innerHTML = "<strong>No se pudo confirmar de inmediato la recepción debido a una intermitencia de red.</strong> Por favor revise su bandeja de entrada (y la carpeta de correo no deseado) en unos minutos para comprobar si recibió el correo de confirmación con su código de trámite.";
       }
     }
 
@@ -782,6 +902,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (studentNameEl) studentNameEl.textContent = solicitud.nombreEstudiante || "—";
     if (textarea) textarea.value = "";
+
+    // Motivo rápido de duplicado: con este texto el correo al estudiante no invita a corregir
+    // (el backend lo detecta por el prefijo «Solicitud duplicada:»).
+    const btnDuplicado = document.getElementById('btn-jefatura-motivo-duplicado');
+    if (btnDuplicado && textarea) {
+      btnDuplicado.onclick = () => {
+        textarea.value = btnDuplicado.getAttribute('data-obs');
+        textarea.focus();
+      };
+    }
 
     modal.classList.remove('hidden');
     if (textarea) textarea.focus();
@@ -1566,29 +1696,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCancelSubsanacion = document.getElementById('btn-cancel-subsanacion');
   let subsanacionOriginalId = null;
 
-  function abrirModalSubsanacion(codigoPrellenado) {
+  // origen: 'devolucion' cuando el enlace viene del correo de devolución (docente o Jefatura); en
+  // cualquier otro caso con código precargado, es la corrección propia previa a confirmar.
+  function abrirModalSubsanacion(codigoPrellenado, origen) {
     if (!modalSubsanacion) return;
+    const esCorreccionPropiaPrevia = Boolean(codigoPrellenado) && origen !== 'devolucion';
+    const esDevolucionPrecargada = Boolean(codigoPrellenado) && origen === 'devolucion';
     if (inputSubsanacionCodigo) inputSubsanacionCodigo.value = codigoPrellenado || '';
     if (inputSubsanacionCarne) inputSubsanacionCarne.value = '';
     if (subsanacionStatus) subsanacionStatus.style.display = 'none';
     if (subsanacionError) subsanacionError.style.display = 'none';
     if (subsanacionModalTitle) {
-      subsanacionModalTitle.textContent = codigoPrellenado
+      subsanacionModalTitle.textContent = esCorreccionPropiaPrevia
         ? 'Corregir Solicitud Antes de Confirmar'
-        : 'Cargar Solicitud Devuelta para Subsanación';
+        : (esDevolucionPrecargada ? 'Corregir Solicitud Devuelta' : 'Cargar Solicitud Devuelta para Subsanación');
     }
     if (subsanacionModalDesc) {
-      subsanacionModalDesc.textContent = codigoPrellenado
+      subsanacionModalDesc.textContent = esCorreccionPropiaPrevia
         ? 'Ingrese su número de carné institucional para recuperar los datos de su solicitud y corregirlos antes de confirmar el envío a su docente.'
-        : 'Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:';
+        : (esDevolucionPrecargada
+          ? 'Ingrese su número de carné institucional. El sistema cargará su solicitud con todos los datos ya registrados y las observaciones recibidas, para que corrija únicamente lo señalado. No necesita llenar el formulario desde cero.'
+          : 'Ingrese el código de trámite de la solicitud devuelta y su número de carné institucional. El sistema recuperará toda la información registrada para que aplique únicamente las correcciones señaladas:');
     }
     if (subsanacionCodigoLabel) {
-      subsanacionCodigoLabel.innerHTML = codigoPrellenado
+      subsanacionCodigoLabel.innerHTML = esCorreccionPropiaPrevia
         ? 'Código de su Solicitud <span class="required">*</span>'
         : 'Código de Solicitud Devuelta <span class="required">*</span>';
     }
     if (subsanacionCodigoHint) {
-      subsanacionCodigoHint.textContent = codigoPrellenado
+      subsanacionCodigoHint.textContent = esCorreccionPropiaPrevia
         ? 'Código del trámite indicado en el enlace de su correo de confirmación.'
         : 'Código del trámite tal como fue emitido en su acuse y correo de devolución.';
     }
@@ -1612,9 +1748,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // anti-Safe-Links del correo de confirmación (?subsanar=<ticketId>), antes de que el
   // docente sea notificado. El carné se sigue pidiendo manualmente (misma validación
   // server-side de siempre); solo se precarga el código para evitar transcribirlo.
-  const codigoSubsanarUrl = new URLSearchParams(window.location.search).get('subsanar');
+  // El mismo parámetro llega también desde el botón «Corregir mi Solicitud» de los correos de
+  // devolución, con &origen=devolucion para que el modal no hable de "antes de confirmar".
+  const paramsSubsanarUrl = new URLSearchParams(window.location.search);
+  const codigoSubsanarUrl = paramsSubsanarUrl.get('subsanar');
   if (codigoSubsanarUrl) {
-    abrirModalSubsanacion(codigoSubsanarUrl.trim().toUpperCase());
+    abrirModalSubsanacion(codigoSubsanarUrl.trim().toUpperCase(), paramsSubsanarUrl.get('origen'));
   }
 
   function populateSubsanacionData(solicitudData, motivo, estadoOrigen) {
@@ -2235,6 +2374,66 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Form Submission (Student Step) con Protección Anti-Spam y Modales Institucionales ---
   let isSubmitting = false;
 
+  // Aviso de solicitud enviada y sin confirmar con el mismo carné (última barrera contra duplicados
+  // por pánico). El servidor no entrega el código de esa solicitud, solo laboratorio y fecha, y un
+  // token temporal para reenviar su correo de confirmación o para enviar la nueva de todos modos.
+  let tokenDuplicadoAutorizado = null;
+
+  async function manejarAvisoDuplicado(aviso, carne) {
+    const pendientes = Array.isArray(aviso.pendientes) ? aviso.pendientes : [];
+    const hayConfirmadas = pendientes.some(p => p.confirmada);
+    const haySinConfirmar = pendientes.some(p => !p.confirmada);
+    const lista = pendientes
+      .map(p => `• ${p.laboratorio || 'Laboratorio'}, enviada el ${p.fechaEnvio || '—'} (${p.confirmada ? 'ya confirmada, en revisión de su docente' : 'sin confirmar'})`)
+      .join('\n');
+    const intro = pendientes.length === 1
+      ? 'Con su carné ya hay una solicitud en trámite que podría ser esta misma:'
+      : `Con su carné ya hay ${pendientes.length} solicitudes en trámite que podrían ser esta misma:`;
+    const consejos = [];
+    if (haySinConfirmar) {
+      consejos.push('Si no la ha confirmado: busque el correo de confirmación (revise también el correo no deseado) y confírmela. Si tiene un error, puede corregirla desde la pantalla que abre el botón de ese correo.');
+    }
+    if (hayConfirmadas) {
+      consejos.push('Si ya la confirmó, ya está con su docente: no la envíe otra vez. Si tiene un error, su docente puede devolverla con observaciones para que la corrija, o puede escribir a laboratorio.eiq@ucr.ac.cr con su código de trámite.');
+    }
+
+    const eleccion = await showGeneralConfirm(
+      'Ya Tiene una Solicitud en Trámite',
+      `${intro}\n\n${lista}\n\n${consejos.join('\n\n')}\n\nSi se trata de una solicitud distinta, puede enviarla de todos modos.`,
+      'Enviar de todos modos',
+      { cancelLabel: 'No enviar', extraLabel: aviso.puedeReenviar ? 'Reenviarme ese correo' : '' }
+    );
+
+    if (eleccion === true) {
+      tokenDuplicadoAutorizado = aviso.tokenDuplicado || null;
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.dispatchEvent(new Event('submit', { cancelable: true }));
+      return;
+    }
+
+    if (eleccion === 'extra') {
+      try {
+        const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'reenviar_confirmacion', tokenDuplicado: aviso.tokenDuplicado, carne: carne }),
+          redirect: 'follow'
+        });
+        const resJson = await resp.json();
+        showGeneralAlert(
+          resJson.success ? 'Correo Reenviado' : 'Aviso de Reenvío',
+          resJson.success
+            ? 'Le reenviamos el correo de confirmación de su solicitud anterior a su correo institucional. Confírmela desde ese correo; no es necesario enviar esta otra.'
+            : (resJson.error || 'No fue posible reenviar el correo de confirmación.'),
+          !resJson.success
+        );
+      } catch (e) {
+        showGeneralAlert('Error de Conexión', 'No fue posible comunicarse con el servidor para el reenvío. Intente de nuevo en unos minutos.', true);
+      }
+    }
+    // 'No enviar': el formulario queda tal cual, sin registrar nada.
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (isSubmitting) return; // Bloqueo estricto anti-doble clic / spam
@@ -2356,6 +2555,10 @@ document.addEventListener('DOMContentLoaded', () => {
       integrantes: integrantes,
       compromisosAceptados: document.querySelectorAll('#commitments-container .chk-commitment:checked').length,
       turnstileToken: turnstileToken || "",
+      // Solo presente si la persona eligió «Enviar de todos modos» en el aviso de solicitud sin confirmar.
+      soportaAvisoDuplicado: true,
+      confirmarDuplicado: Boolean(tokenDuplicadoAutorizado),
+      tokenDuplicado: tokenDuplicadoAutorizado || "",
       inicialesEstudiante: document.getElementById('inicialesEstudiante').value.toUpperCase(),
       estado: "Pendiente Confirmación Estudiante",
       docenteAprobado: false,
@@ -2371,13 +2574,17 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaCreacion: new Date().toLocaleDateString('es-CR') + " " + new Date().toLocaleTimeString('es-CR', {hour: '2-digit', minute:'2-digit'})
     };
 
+    tokenDuplicadoAutorizado = null; // de un solo uso: ya viaja en nuevaSolicitud
+
     let ticketFinal = newReqId;
     let envioExitoso = false;
     let esContingencia = false;
+    let errorServidor = null;
+    let avisoDuplicado = null;
 
     // Transmitir a Google Apps Script si está en modo Live
     if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
-      try {
+      const enviarAlServidor = async () => {
         const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2385,61 +2592,67 @@ document.addEventListener('DOMContentLoaded', () => {
           redirect: 'follow'
         });
         const rawText = await resp.text();
-        let result = null;
         try {
-          result = JSON.parse(rawText);
+          return JSON.parse(rawText);
         } catch (e) {
           const ticketMatch = rawText.match(/COT-PERM-\d{4}-\d{4}|LG-PERM-\d{4}-\d{4}|LI-PERM-\d{4}-\d{4}/);
-          if (ticketMatch) {
-            result = { success: true, ticketId: ticketMatch[0] };
-          }
+          return ticketMatch ? { success: true, ticketId: ticketMatch[0] } : null;
         }
+      };
+      const aplicarRegistro = (result) => {
+        ticketFinal = result.ticketId;
+        nuevaSolicitud.id = ticketFinal;
+        activeTicketId = ticketFinal;
+        envioExitoso = true;
+        if (result.correoConfirmacionPendiente) {
+          nuevaSolicitud.correoConfirmacionPendiente = true;
+        }
+      };
+
+      try {
+        const result = await enviarAlServidor();
         if (result && result.success && result.ticketId) {
-          ticketFinal = result.ticketId;
-          nuevaSolicitud.id = ticketFinal;
-          activeTicketId = ticketFinal;
-          envioExitoso = true;
-          if (result.correoConfirmacionPendiente) {
-            nuevaSolicitud.correoConfirmacionPendiente = true;
-          }
+          aplicarRegistro(result);
+        } else if (result && result.duplicadoPendiente) {
+          // No es un error: el servidor no registró nada y pregunta antes de crear un posible duplicado.
+          avisoDuplicado = result;
+        } else if (result && result.success === false) {
+          // Rechazo explícito del servidor (fecha, docente, verificación humana, etc.): la solicitud NO
+          // quedó registrada y debe decirse así. Presentarlo como "envío en proceso" haría esperar un
+          // correo que nunca llegará, que es justo lo que empuja a enviar solicitudes duplicadas.
+          errorServidor = result.error || "El servidor no pudo registrar la solicitud.";
         } else {
           throw new Error('Respuesta inicial en espera de confirmación');
         }
       } catch (err) {
-        console.warn('Aviso de latencia en despacho POST. Iniciando verificación silenciosa en segundo plano:', err);
+        console.warn('Aviso de latencia en despacho POST. Reintentando con la misma clave de idempotencia:', err);
         showSubmissionLoading("Confirmando registro del expediente y despacho de notificaciones en el sistema central...");
 
-        // Sondeo silencioso con reintentos para no alarmar al estudiante si Apps Script tarda unos segundos
+        // Reintento idempotente: se reenvía la misma solicitud con la misma idempotencyKey. Si el primer
+        // envío sí llegó, el servidor devuelve el mismo código sin crear un duplicado (la caché de
+        // idempotencia se consulta antes de la verificación Turnstile).
         for (let intento = 1; intento <= 3; intento++) {
-          await new Promise(resolve => setTimeout(resolve, 2500));
+          await new Promise(resolve => setTimeout(resolve, 2500 * intento));
           try {
-            const checkResp = await fetch(`${EIQ_CONFIG.API_BACKEND_URL}?action=listar&_nc=${Date.now()}`, {
-              method: 'GET',
-              redirect: 'follow'
-            });
-            const checkRaw = await checkResp.text();
-            let checkData = null;
-            try { checkData = JSON.parse(checkRaw); } catch(e){}
-            if (checkData && checkData.success && Array.isArray(checkData.solicitudes)) {
-              // Buscar coincidencia en las solicitudes más recientes (al revés)
-              const encontrada = [...checkData.solicitudes].reverse().find(s => 
-                s.carneEstudiante === nuevaSolicitud.carneEstudiante &&
-                (s.nombreEstudiante || "").trim().toLowerCase() === (nuevaSolicitud.nombreEstudiante || "").trim().toLowerCase()
-              );
-              if (encontrada && encontrada.id) {
-                ticketFinal = encontrada.id;
-                nuevaSolicitud.id = ticketFinal;
-                activeTicketId = ticketFinal;
-                envioExitoso = true;
-                break;
-              }
+            const reintento = await enviarAlServidor();
+            if (reintento && reintento.success && reintento.ticketId) {
+              aplicarRegistro(reintento);
+              break;
             }
-          } catch (checkErr) {
-            console.warn(`Intento ${intento} de sondeo en curso:`, checkErr);
+            if (reintento && reintento.duplicadoPendiente) {
+              avisoDuplicado = reintento;
+              break;
+            }
+            if (reintento && reintento.success === false) {
+              // El primer envío no llegó (su verificación Turnstile ya no es reutilizable): no se insiste.
+              break;
+            }
+          } catch (reintentoErr) {
+            console.warn(`Intento ${intento} de confirmación en curso:`, reintentoErr);
           }
         }
 
-        if (!envioExitoso) {
+        if (!envioExitoso && !avisoDuplicado) {
           // No alarmar al estudiante con términos técnicos ("modo local", "error remoto", "Failed to fetch")
           esContingencia = true;
         }
@@ -2456,6 +2669,25 @@ document.addEventListener('DOMContentLoaded', () => {
       btnSubmit.textContent = textoOriginalBtn;
     }
     isSubmitting = false;
+
+    if (avisoDuplicado) {
+      await manejarAvisoDuplicado(avisoDuplicado, nuevaSolicitud.carneEstudiante);
+      return;
+    }
+
+    if (errorServidor) {
+      // La verificación humana ya se consumió en este intento: se renueva para poder reenviar.
+      if (typeof turnstile !== 'undefined') {
+        try { turnstile.reset('#cf-turnstile-widget'); } catch (e) {}
+      }
+      turnstileToken = "";
+      showGeneralAlert(
+        "No se pudo enviar la solicitud",
+        `${errorServidor}\n\nSu solicitud NO quedó registrada y no recibirá ningún correo por este intento. Corrija lo indicado y vuelva a presionar «Enviar Solicitud para Visto Bueno»: los datos que ya escribió se conservan.`,
+        true
+      );
+      return;
+    }
 
     solicitudes.unshift(nuevaSolicitud);
     guardarSolicitudesLS(); // Persistir en localStorage para sobrevivir recargas
@@ -3790,6 +4022,11 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       btnModalDevolver.classList.remove('hidden');
       btnModalDevolver.onclick = () => {
+        const firmaDev = obtenerFirmaJefatura(s);
+        if (firmaDev.error) {
+          showGeneralAlert("Datos de Delegación Incompletos", firmaDev.error, true);
+          return;
+        }
         showJefaturaDevolucionModal(s, async (motivo) => {
           showSubmissionLoading("Procesando devolución y notificando a las partes interesadas...");
           closeModalRevision();
@@ -3800,14 +4037,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let respOk = false;
             let errorMsg = "";
             try {
-              const chkDelegacion = document.getElementById('chk-delegacion-firma');
-              const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
-              let jNombre = config.titularNombre;
-              let jCargo = config.titularCargo;
-              if (chkDelegacion && chkDelegacion.checked) {
-                jNombre = document.getElementById('delegado-nombre').value.trim() || jNombre;
-                jCargo = document.getElementById('delegado-cargo').value.trim() || jCargo;
-              }
               const resp = await fetch(EIQ_CONFIG.API_BACKEND_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -3816,8 +4045,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   action: "devolver_jefatura",
                   ticketId: s.id,
                   motivo: motivo.trim(),
-                  jefeNombre: jNombre,
-                  jefeCargo: jCargo,
+                  jefeNombre: firmaDev.nombre,
+                  jefeCargo: firmaDev.cargo,
+                  jefeIniciales: firmaDev.iniciales,
+                  esDelegado: firmaDev.esDelegado,
                   auth_token: localStorage.getItem('eiq_jefatura_auth_token') || ''
                 })
               });
@@ -3869,24 +4100,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = solicitudes.find(item => item.id === id);
     if (!s) return;
 
+    const firma = obtenerFirmaJefatura(s);
+    if (firma.error) {
+      showGeneralAlert("Datos de Delegación Incompletos", firma.error, true);
+      return;
+    }
+    // La firma impresa en la carta no depende de quién inició sesión, sino de la casilla de
+    // delegación; por eso se muestra antes de emitir, para que nadie firme a nombre de otra persona.
+    const confirmado = await showGeneralConfirm(
+      "Confirmar Autorización",
+      `La Carta Oficial de la solicitud #${s.id} se firmará a nombre de:\n\n${firma.nombre}\n${firma.cargo} [${firma.iniciales}]` +
+        (firma.esDelegado ? "\n\n(Firma por delegación / sustitución.)" : "") +
+        "\n\nSe enviarán las notificaciones automáticas por correo electrónico. ¿Desea continuar?",
+      "Autorizar y Emitir"
+    );
+    if (!confirmado) return;
+
     showSubmissionLoading("Emitiendo autorización oficial y despachando resoluciones por correo electrónico...");
     try {
-      const config = LAB_CONFIGS[s.tipoLaboratorio] || LAB_CONFIGS.general;
-      const chkDelegacion = document.getElementById('chk-delegacion-firma');
-
-      let nuevoJefeNombre = config.titularNombre;
-      let nuevoJefeCargo = config.titularCargo;
-      let nuevoJefeTituloSig = config.titularSig;
-      let nuevoJefeIniciales = config.titularIniciales;
-      let nuevoEsDelegado = false;
-
-      if (chkDelegacion && chkDelegacion.checked) {
-        nuevoJefeNombre = document.getElementById('delegado-nombre').value.trim() || "Dra. Rebeca Salazar Vega";
-        nuevoJefeCargo = document.getElementById('delegado-cargo').value.trim() || "Jefa de Laboratorio a.i.";
-        nuevoJefeTituloSig = 'V.B. ' + nuevoJefeCargo;
-        nuevoJefeIniciales = document.getElementById('delegado-iniciales').value.trim().toUpperCase() || "RSV";
-        nuevoEsDelegado = true;
-      }
+      const nuevoJefeNombre = firma.nombre;
+      const nuevoJefeCargo = firma.cargo;
+      const nuevoJefeTituloSig = firma.tituloSig;
+      const nuevoJefeIniciales = firma.iniciales;
+      const nuevoEsDelegado = firma.esDelegado;
 
       // Notificar al backend en modo Live para actualizar Sheets y despachar correos
       if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
@@ -10482,6 +10718,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.rolId) localStorage.setItem('eiq_funcionario_rol_id', data.rolId);
 
           closeAdminPinModal();
+          aplicarDelegacionSegunPerfil();
           applyRoleVisibility(rolEfectivo);
           showGeneralAlert("Acceso Concedido", data.mensaje || `Bienvenido(a), ${data.funcionario || 'Jefatura'}.`);
         } else {
@@ -10531,6 +10768,10 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('eiq_funcionario_iniciales');
     localStorage.removeItem('eiq_funcionario_lab');
     localStorage.removeItem('eiq_funcionario_rol_id');
+    // La delegación no debe sobrevivir a la sesión: la próxima persona que entre empieza sin ella.
+    if (chkDelegacionFirma) chkDelegacionFirma.checked = false;
+    aplicarDelegacionSegunPerfil();
+    guardarDelegacion();
   }
 
   if (btnSwitchToStudent) {
@@ -10582,6 +10823,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'Esc') {
       const dismissibleModals = [
+        { modalId: 'modal-general-confirm', btnId: 'btn-confirm-modal-cancel' },
         { modalId: 'modal-general-alert', btnId: 'btn-alert-modal-ok' },
         { modalId: 'modal-admin-pin', btnId: 'btn-cancel-modal-pin' },
         { modalId: 'modal-subsanacion', btnId: 'btn-cancel-modal-subsanacion' },
