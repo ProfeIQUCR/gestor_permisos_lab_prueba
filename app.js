@@ -2987,7 +2987,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function generateLetterHTML(current) {
     const config = LAB_CONFIGS[current.tipoLaboratorio] || LAB_CONFIGS.general;
 
-    const tokenVal = current.token || current.tokenAprobacion || current.tokenSeguridad || '';
+    // tokenVerificacion lo entrega el servidor solo para cartas autorizadas (listado y respuesta de
+    // autorizar). Sin token, la página del QR responde "Verificación no disponible".
+    const tokenVal = current.tokenVerificacion || current.token || current.tokenAprobacion || current.tokenSeguridad || '';
     const tokenParam = tokenVal ? `&token=${encodeURIComponent(tokenVal)}` : '';
     const verifUrl = (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode())
       ? `${EIQ_CONFIG.API_BACKEND_URL}?action=verificar&id=${encodeURIComponent(current.id)}${tokenParam}`
@@ -4125,6 +4127,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const nuevoEsDelegado = firma.esDelegado;
 
       // Notificar al backend en modo Live para actualizar Sheets y despachar correos
+      let respDataAut = null;
       if (typeof EIQ_CONFIG !== 'undefined' && EIQ_CONFIG.isLiveMode()) {
         let respData = null;
         let respOk = false;
@@ -4159,9 +4162,11 @@ document.addEventListener('DOMContentLoaded', () => {
           showGeneralAlert("Error de Autorización", (respData && respData.error) || errorMsg || "El servidor rechazó la autorización. Verifique que su sesión de Jefatura siga activa.");
           return;
         }
+        respDataAut = respData;
       }
 
       // Solo se muta el estado local y se persiste si el backend confirmó la autorización
+      if (respDataAut && respDataAut.tokenVerificacion) s.tokenVerificacion = respDataAut.tokenVerificacion;
       s.jefeNombre = nuevoJefeNombre;
       s.jefeCargo = nuevoJefeCargo;
       s.jefeTituloSig = nuevoJefeTituloSig;
